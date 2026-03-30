@@ -1,0 +1,82 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: ai-workflow-platform
+  
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ai-workflow
+      database: ai-workflow
+    
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: workflow-engine
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8080
+
+# ===== 模型配置 (第三方 API 优先) =====
+model:
+  # P0 - 第三方 API 模型
+  kling:
+    api-url: https://api.klingai.com/v1
+    api-key: ${KLING_API_KEY:}
+  
+  wan:
+    api-url: https://dashscope.aliyuncs.com/api/v1
+    api-key: ${WAN_API_KEY:}
+    model-version: wanx-v1
+  
+  seedance:
+    api-url: https://ark.cn-beijing.volces.com/api/v1
+    api-key: ${SEEDANCE_API_KEY:}
+  
+  nanobanana:
+    api-url: https://api.nanobanana.com/v1
+    api-key: ${NANOBANANA_API_KEY:}
+  
+  # P1 - 平台 API (Replicate/Fal.ai)
+  sdxl:
+    api-url: https://api.replicate.com/v1
+    api-key: ${REPLICATE_API_KEY:}
+    version: black-forest-labs/flux-schnell
+  
+  flux:
+    api-url: https://api.fal.ai/v1
+    api-key: ${FAL_API_KEY:}
+  
+  # P2 - 自部署模型 (后置)
+  self-hosted:
+    enabled: false
+    base-url: http://localhost:7860
+
+# MinIO 对象存储配置
+minio:
+  endpoint: http://localhost:9000
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: workflow-outputs
+
+# WebSocket 配置
+websocket:
+  enabled: true
+  path: /ws
+
+# 日志配置
+logging:
+  level:
+    com.ben.workflow: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
