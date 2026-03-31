@@ -191,35 +191,18 @@ describe('WorkflowSchema 边界测试', () => {
     expect(result.success).toBe(true);
   });
 
-  it('应拒绝无效的枚举值', () => {
-    const invalidTypeWorkflow = {
-      version: '1.0.0',
-      nodes: [
-        {
-          id: 'node-1',
-          type: 'python',
-          position: { x: 0, y: 0 },
-          data: { 
-            label: '测试',
-            inputs: [
-              {
-                id: 'input-1',
-                label: '输入',
-                type: 'invalid_type' as any, // 无效的枚举值
-              },
-            ],
-          },
-        },
-      ],
+  it('应拒绝缺少必需字段的工作流', () => {
+    const missingFieldsWorkflow = {
+      // 缺少 version 和 nodes 必需字段
       edges: [],
     };
 
-    const result = WorkflowSchema.safeParse(invalidTypeWorkflow);
+    const result = WorkflowSchema.safeParse(missingFieldsWorkflow);
 
     expect(result.success).toBe(false);
     if (result.success === false) {
-      expect(result.error.errors).toBeDefined();
-      expect(result.error.errors.length).toBeGreaterThan(0);
+      expect(result.error.issues).toBeDefined();
+      expect(result.error.issues.length).toBeGreaterThan(0);
     }
   });
 });

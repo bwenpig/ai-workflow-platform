@@ -49,11 +49,11 @@ export function validateWorkflow(data: any): ValidationResult {
     };
   }
   
-  // 转换 Zod 错误为自定义错误格式
-  const errors: ValidationError[] = (result.error.errors || []).map(err => ({
+  // 转换 Zod 错误为自定义错误格式 (Zod v4 使用 issues 而不是 errors)
+  const errors: ValidationError[] = (result.error.issues || []).map(err => ({
     path: err.path.join('.'),
     message: err.message,
-    code: err.code,
+    code: err.code as string,
   }));
   
   return {
