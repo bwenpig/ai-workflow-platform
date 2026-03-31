@@ -1,8 +1,11 @@
 package com.ben.workflow.engine;
 
 import com.ben.workflow.model.PythonNodeConfig;
+import com.ben.workflow.spi.ModelExecutor;
+import com.ben.workflow.spi.ModelExecutionContext;
+import com.ben.workflow.spi.ModelExecutionResult;
+import com.ben.workflow.spi.NodeComponent;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Component;
 
 import java.io.*;
 import java.nio.file.*;
@@ -12,12 +15,48 @@ import java.util.concurrent.*;
 /**
  * Python 脚本执行器
  */
-@Component
-public class PythonScriptExecutor {
+@NodeComponent(value = "python_script", name = "Python 脚本", description = "执行 Python 脚本节点")
+public class PythonScriptExecutor implements ModelExecutor {
     
     private static final String PYTHON_EXECUTABLE = "python3";
     private static final int DEFAULT_TIMEOUT = 30;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    
+    @Override
+    public String getType() {
+        return "python_script";
+    }
+    
+    @Override
+    public ModelExecutionResult execute(ModelExecutionContext context) {
+        Map<String, Object> config = context.getConfig();
+        String script = config != null ? (String) config.get("script") : "";
+        Integer timeout = config != null ? (Integer) config.get("timeout") : null;
+        List<String> requirements = config != null ? (List<String>) config.get("requirements") : null;
+        Map<String, Object> env = config != null ? (Map<String, Object>) config.get("env") : null;
+        
+        PythonNodeConfig nodeConfig = new PythonNodeConfig();
+        nodeConfig.setScript(script);
+        nodeConfig.setTimeout(timeout);
+        nodeConfig.setRequirements(requirements);
+        if (env != null) {
+            Map<String, String> envMap = new HashMap<>();
+            for (Map.Entry<String, Object> entry : env.entrySet()) {
+                envMap.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : "");
+            }
+            nodeConfig.setEnv(envMap);
+        }
+        
+        PythonExecutionResult result = execute(script, context.getInputs(), nodeConfig);
+        
+        if (!result.isSuccess()) {
+            return ModelExecutionResult.failure(result.getError());
+        }
+        
+        ModelExecutionResult execResult = ModelExecutionResult.success(result.getOutputs());
+        execResult.setLogs(result.getLogs());
+        return execResult;
+    }
     
     public PythonExecutionResult execute(String script, Map<String, Object> inputs, PythonNodeConfig config) {
         if (inputs == null) {

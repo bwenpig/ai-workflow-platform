@@ -6,9 +6,14 @@ import com.ben.workflow.model.WorkflowExecution;
 import com.ben.workflow.model.WorkflowNode;
 import com.ben.workflow.model.PythonNodeConfig;
 import com.ben.workflow.engine.PythonExecutionResult;
+import com.ben.workflow.spi.ModelExecutor;
+import com.ben.workflow.spi.ModelExecutionContext;
+import com.ben.workflow.spi.ModelExecutionResult;
+import com.ben.workflow.spi.ExecutorRegistry;
 import com.ben.workflow.repository.ExecutionRepository;
 import com.ben.workflow.websocket.WebSocketNotificationService;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -21,15 +26,16 @@ public class DagWorkflowEngine implements WorkflowEngine {
 
     private final WebSocketNotificationService notificationService;
     private final ExecutionRepository executionRepository;
-    private final PythonScriptExecutor pythonExecutor;
+    private final ExecutorRegistry executorRegistry;
     private final Map<String, ExecutionState> executionStates = new ConcurrentHashMap<>();
     
+    @Autowired
     public DagWorkflowEngine(WebSocketNotificationService notificationService, 
                             ExecutionRepository executionRepository,
-                            PythonScriptExecutor pythonExecutor) {
+                            ExecutorRegistry executorRegistry) {
         this.notificationService = notificationService;
         this.executionRepository = executionRepository;
-        this.pythonExecutor = pythonExecutor;
+        this.executorRegistry = executorRegistry;
     }
 
     @Override
@@ -197,16 +203,22 @@ public class DagWorkflowEngine implements WorkflowEngine {
                     result = inputs.getOrDefault("default", node.getConfig().get("value"));
                     break;
                 case "MODEL":
-                    result = mockModelResult(node);
+                case "kling":
+                case "wan":
+                case "seedance":
+                case "nanobanana":
+                    result = executeModel(instanceId, node, inputs);
                     break;
                 case "PROCESS":
                     result = processInput(inputs);
                     break;
+                case "python_script":
                 case "PYTHON_SCRIPT":
-                    result = executePythonScript(node, inputs);
+                    result = executePythonScript(instanceId, node, inputs);
                     break;
                 default:
-                    result = inputs;
+                    // 尝试使用 SPI 执行器
+                    result = executeWithSpi(instanceId, node, inputs);
             }
             return result;
         } catch (Exception e) {
@@ -215,43 +227,66 @@ public class DagWorkflowEngine implements WorkflowEngine {
         }
     }
 
-    private Object mockModelResult(WorkflowNode node) {
-        String modelProvider = node.getModelProvider();
-        Map<String, Object> result = new HashMap<>();
-        result.put("modelProvider", modelProvider);
-        
-        switch (modelProvider != null ? modelProvider : "") {
-            case "kling":
-                result.put("type", "video");
-                result.put("url", "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
-                result.put("previewUrl", "https://via.placeholder.com/640x360.png?text=Kling+Video");
-                result.put("duration", 5);
-                result.put("fps", 24);
-                break;
-            case "wan":
-                result.put("type", "image");
-                result.put("url", "https://via.placeholder.com/1024x1024.png?text=Wan+Image");
-                result.put("width", 1024);
-                result.put("height", 1024);
-                break;
-            case "seedance":
-                result.put("type", "video");
-                result.put("url", "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4");
-                result.put("previewUrl", "https://via.placeholder.com/640x360.png?text=Seedance+Video");
-                result.put("duration", 10);
-                result.put("fps", 30);
-                break;
-            case "nanobanana":
-                result.put("type", "image");
-                result.put("url", "https://via.placeholder.com/1024x1024.png?text=NanoBanana+Image");
-                result.put("width", 1024);
-                result.put("height", 1024);
-                break;
-            default:
-                result.put("type", "image");
-                result.put("url", "https://via.placeholder.com/512x512.png?text=Mock+Output");
+    /**
+     * 使用 SPI 执行器执行模型
+     */
+    private Object executeModel(String instanceId, WorkflowNode node, Map<String, Object> inputs) {
+        String nodeType = node.getType();
+        if ("MODEL".equals(nodeType)) {
+            nodeType = node.getModelProvider();
         }
-        return result;
+        
+        ModelExecutor executor = executorRegistry.getExecutor(nodeType);
+        if (executor == null) {
+            // 尝试使用通用适配器
+            executor = executorRegistry.getExecutor("adapter");
+        }
+        
+        if (executor == null) {
+            throw new RuntimeException("未找到模型执行器：type=" + nodeType);
+        }
+        
+        ModelExecutionContext context = new ModelExecutionContext();
+        context.setInstanceId(instanceId);
+        context.setNodeId(node.getNodeId());
+        context.setNodeType(nodeType);
+        context.setInputs(inputs);
+        context.setConfig(node.getConfig());
+        
+        ModelExecutionResult execResult = executor.execute(context);
+        
+        if (!execResult.isSuccess()) {
+            throw new RuntimeException("模型执行失败：" + execResult.getError());
+        }
+        
+        return execResult.getData();
+    }
+
+    /**
+     * 使用 SPI 执行器执行
+     */
+    private Object executeWithSpi(String instanceId, WorkflowNode node, Map<String, Object> inputs) {
+        String nodeType = node.getType();
+        ModelExecutor executor = executorRegistry.getExecutor(nodeType);
+        if (executor == null) {
+            System.out.println("未找到 SPI 执行器：type=" + nodeType);
+            return inputs;
+        }
+        
+        ModelExecutionContext context = new ModelExecutionContext();
+        context.setInstanceId(instanceId);
+        context.setNodeId(node.getNodeId());
+        context.setNodeType(nodeType);
+        context.setInputs(inputs);
+        context.setConfig(node.getConfig());
+        
+        ModelExecutionResult execResult = executor.execute(context);
+        
+        if (!execResult.isSuccess()) {
+            throw new RuntimeException("执行器执行失败：" + execResult.getError());
+        }
+        
+        return execResult.getData();
     }
 
     private Object processInput(Map<String, Object> inputs) {
@@ -286,41 +321,60 @@ public class DagWorkflowEngine implements WorkflowEngine {
         return Mono.empty();
     }
 
+    // ==================== 测试辅助方法 ====================
+    
     /**
-     * 执行 Python 脚本节点
+     * 拓扑排序（公共，用于测试）
      */
-    private Object executePythonScript(WorkflowNode node, Map<String, Object> inputs) {
-        System.out.println("执行 Python 脚本节点：nodeId=" + node.getNodeId());
-        
-        try {
-            PythonNodeConfig config = new PythonNodeConfig();
-            if (node.getConfig() != null) {
-                config.setScript((String) node.getConfig().get("script"));
-                config.setTimeout((Integer) node.getConfig().get("timeout"));
-                config.setRequirements((List<String>) node.getConfig().get("requirements"));
-            }
-            
-            PythonExecutionResult execResult = pythonExecutor.execute(
-                config.getScript(), 
-                inputs, 
-                config
-            );
-            
-            if (!execResult.isSuccess()) {
-                throw new RuntimeException("Python 脚本执行失败：" + execResult.getError());
-            }
-            
-            Map<String, Object> result = new HashMap<>();
-            result.put("type", "python_script");
-            result.put("outputs", execResult.getOutputs());
-            result.put("logs", execResult.getLogs());
-            
-            return result;
-            
-        } catch (Exception e) {
-            System.err.println("Python 脚本节点执行失败：" + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        }
+    public List<String> topologicalSortForTest(Workflow workflow) {
+        return topologicalSort(workflow);
+    }
+
+    /**
+     * 收集节点输入（公共，用于测试）
+     */
+    public Map<String, Object> collectNodeInputsForTest(Workflow workflow, WorkflowNode node, Map<String, Object> outputs) {
+        return collectNodeInputs(workflow, node, outputs);
+    }
+
+    /**
+     * 执行节点（公共，用于测试）
+     */
+    public Object executeNodeForTest(String instanceId, WorkflowNode node, Map<String, Object> inputs) {
+        return executeNode(instanceId, node, inputs);
+    }
+
+    /**
+     * 查找节点（公共，用于测试）
+     */
+    public WorkflowNode findNodeForTest(Workflow workflow, String nodeId) {
+        return findNode(workflow, nodeId);
+    }
+
+    /**
+     * 更新执行状态（公共，用于测试）
+     */
+    public void updateExecutionStatusForTest(String instanceId, String status, Map<String, WorkflowExecution.NodeExecutionState> nodeStates) {
+        updateExecutionStatus(instanceId, status, nodeStates);
+    }
+
+    /**
+     * 创建执行状态（公共，用于测试）
+     */
+    public void createExecutionStateForTest(String instanceId) {
+        ExecutionState state = ExecutionState.builder()
+                .instanceId(instanceId)
+                .workflowId("test-workflow")
+                .status(ExecutionState.Status.RUNNING)
+                .nodeStates(new HashMap<>())
+                .build();
+        executionStates.put(instanceId, state);
+    }
+
+    /**
+     * 执行 Python 脚本节点（使用 SPI）
+     */
+    private Object executePythonScript(String instanceId, WorkflowNode node, Map<String, Object> inputs) {
+        return executeWithSpi(instanceId, node, inputs);
     }
 }
