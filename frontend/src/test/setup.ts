@@ -85,3 +85,35 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
   disconnect() {}
 }
+
+// Mock d3-drag 相关 DOM 操作
+Object.defineProperty(global.SVGElement.prototype, 'getScreenCTM', {
+  writable: true,
+  value: vi.fn(() => ({
+    inverse: () => ({
+      scale: () => ({
+        translate: () => ({})
+      })
+    })
+  }))
+})
+
+// Mock getBoundingClientRect 用于拖拽相关
+if (!global.Element.prototype.getBoundingClientRect) {
+  Object.defineProperty(global.Element.prototype, 'getBoundingClientRect', {
+    writable: true,
+    value: function() {
+      return {
+        width: 100,
+        height: 100,
+        top: 0,
+        left: 0,
+        bottom: 100,
+        right: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => {}
+      }
+    }
+  })
+}

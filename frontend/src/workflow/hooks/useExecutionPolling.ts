@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useWorkflowStore, NodeStatus, LogEntry } from '../store/useWorkflowStore'
 
 // API 响应类型
@@ -163,7 +163,7 @@ export const useRetryNode = (executionId: string | null) => {
 export const useNodeStatus = (nodeId: string) => {
   const executionState = useWorkflowStore((state) => state.executionState)
   
-  if (!executionState) {
+  if (!executionState || !executionState.nodeStates) {
     return {
       status: 'pending' as NodeStatus,
       executionTime: undefined,

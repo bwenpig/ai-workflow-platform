@@ -89,8 +89,16 @@ describe('F035 - 导出 JSON 功能', () => {
     // Compact 格式应该是单行
     expect(compactJson).not.toContain('\n');
     
-    // 两者解析后应该相等
-    expect(JSON.parse(prettyJson)).toEqual(JSON.parse(compactJson));
+    // 两者解析后应该相等（忽略时间戳的毫秒差异）
+    const prettyObj = JSON.parse(prettyJson);
+    const compactObj = JSON.parse(compactJson);
+    
+    // 比较除了时间戳之外的所有字段
+    expect(prettyObj.version).toEqual(compactObj.version);
+    expect(prettyObj.nodes).toEqual(compactObj.nodes);
+    expect(prettyObj.edges).toEqual(compactObj.edges);
+    expect(prettyObj.metadata).toEqual(compactObj.metadata);
+    expect(prettyObj.viewport).toEqual(compactObj.viewport);
   });
 });
 
