@@ -37,7 +37,10 @@ const { Option, OptGroup } = Select;
 // 简化的节点组件
 function SimpleNode({ data, id }: any) {
   return (
-    <div style={{
+    <div 
+      data-testid={`node-${id}`}
+      className="react-flow__node-simple"
+      style={{
       padding: '16px 24px',
       borderRadius: '12px',
       background: data.status === 'SUCCESS' ? '#f6ffed' : 
@@ -290,29 +293,32 @@ export default function WorkflowCanvas() {
           </Card>
 
           {/* 画布 */}
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            fitView
-            nodeTypes={nodeTypes}
-            style={{ background: '#fafafa' }}
-          >
-            <Controls />
-            <MiniMap
-              nodeStrokeColor={(n) => '#1890ff'}
-              nodeColor={(n) => {
-                if (n.data?.status === 'SUCCESS') return '#f6ffed';
-                if (n.data?.status === 'FAILED') return '#fff2f0';
-                if (n.data?.status === 'RUNNING') return '#fffbe6';
-                return '#fff';
-              }}
-            />
-            <Background variant="dots" gap={12} size={1} />
-          </ReactFlow>
+          <div data-testid="canvas" className="canvas-container" style={{ width: '100%', height: '100%' }}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              fitView
+              nodeTypes={nodeTypes}
+              style={{ background: '#fafafa' }}
+              data-testid="react-flow"
+            >
+              <Controls />
+              <MiniMap
+                nodeStrokeColor={(n) => '#1890ff'}
+                nodeColor={(n) => {
+                  if (n.data?.status === 'SUCCESS') return '#f6ffed';
+                  if (n.data?.status === 'FAILED') return '#fff2f0';
+                  if (n.data?.status === 'RUNNING') return '#fffbe6';
+                  return '#fff';
+                }}
+              />
+              <Background variant="dots" gap={12} size={1} />
+            </ReactFlow>
+          </div>
         </div>
 
         {/* 右侧信息面板 */}
