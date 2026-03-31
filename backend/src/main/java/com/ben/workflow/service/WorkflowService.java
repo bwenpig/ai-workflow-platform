@@ -1,11 +1,11 @@
 package com.ben.workflow.service;
 
-import com.ben.workflow.engine.DagWorkflowEngine;
+import com.ben.workflow.engine.WorkflowEngine;
 import com.ben.workflow.model.Workflow;
 import com.ben.workflow.model.WorkflowExecution;
 import com.ben.workflow.repository.ExecutionRepository;
 import com.ben.workflow.repository.WorkflowRepository;
-import com.ben.workflow.websocket.WebSocketNotificationService;
+import com.ben.workflow.websocket.NotificationService;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -20,10 +20,10 @@ public class WorkflowService {
 
     private final WorkflowRepository workflowRepository;
     private final ExecutionRepository executionRepository;
-    private final DagWorkflowEngine workflowEngine;
-    private final WebSocketNotificationService notificationService;
+    private final WorkflowEngine workflowEngine;
+    private final NotificationService notificationService;
 
-    public WorkflowService(WorkflowRepository workflowRepository, ExecutionRepository executionRepository, DagWorkflowEngine workflowEngine, WebSocketNotificationService notificationService) {
+    public WorkflowService(WorkflowRepository workflowRepository, ExecutionRepository executionRepository, WorkflowEngine workflowEngine, NotificationService notificationService) {
         this.workflowRepository = workflowRepository;
         this.executionRepository = executionRepository;
         this.workflowEngine = workflowEngine;

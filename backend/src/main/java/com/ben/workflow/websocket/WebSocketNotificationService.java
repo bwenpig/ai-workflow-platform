@@ -8,7 +8,7 @@ import java.util.Map;
  * TODO: 后续可以添加真正的 WebSocket 支持
  */
 @Service
-public class WebSocketNotificationService {
+public class WebSocketNotificationService implements NotificationService {
 
     public void notifyExecutionStart(String executionId) {
         System.out.println("[WebSocket] 执行开始：executionId=" + executionId);
