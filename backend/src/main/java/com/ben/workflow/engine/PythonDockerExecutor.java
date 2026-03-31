@@ -7,8 +7,10 @@ import com.ben.workflow.model.PythonNodeConfig;
 import com.ben.workflow.spi.NodeComponent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
@@ -65,8 +67,10 @@ public class PythonDockerExecutor implements NodeExecutor {
     public PythonDockerExecutor(String dockerImage) {
         this.dockerImage = dockerImage;
         
-        // 初始化 Docker 客户端
-        var dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+        // 初始化 Docker 客户端 - 支持 DOCKER_HOST 环境变量和自动检测 socket 路径
+        var dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                .withDockerHost(resolveDockerHost())
+                .build();
         var dockerHttpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(dockerClientConfig.getDockerHost())
                 .sslConfig(dockerClientConfig.getSSLConfig())
@@ -74,7 +78,46 @@ public class PythonDockerExecutor implements NodeExecutor {
         
         this.dockerClient = DockerClientImpl.getInstance(dockerClientConfig, dockerHttpClient);
         
-        System.out.println("[PythonDockerExecutor] 初始化完成，镜像：" + dockerImage);
+        System.out.println("[PythonDockerExecutor] 初始化完成，镜像：" + dockerImage + ", Docker Host: " + dockerClientConfig.getDockerHost());
+    }
+    
+    /**
+     * 解析 Docker Host 地址
+     * 支持以下优先级：
+     * 1. DOCKER_HOST 环境变量
+     * 2. 自动检测常见 socket 路径
+     * 3. 默认值
+     * 
+     * @return Docker Host URL
+     */
+    private String resolveDockerHost() {
+        // 1. 优先使用 DOCKER_HOST 环境变量
+        String dockerHost = System.getenv("DOCKER_HOST");
+        if (dockerHost != null && !dockerHost.trim().isEmpty()) {
+            System.out.println("[PythonDockerExecutor] 使用 DOCKER_HOST 环境变量：" + dockerHost);
+            return dockerHost.trim();
+        }
+        
+        // 2. 自动检测常见 socket 路径
+        String osName = System.getProperty("os.name").toLowerCase();
+        
+        // Linux/macOS: /var/run/docker.sock
+        if (!osName.contains("win")) {
+            if (java.nio.file.Files.exists(java.nio.file.Paths.get("/var/run/docker.sock"))) {
+                System.out.println("[PythonDockerExecutor] 检测到 Unix socket: /var/run/docker.sock");
+                return "unix:///var/run/docker.sock";
+            }
+        }
+        
+        // Windows: npipe:////./pipe/docker_engine
+        if (osName.contains("win")) {
+            System.out.println("[PythonDockerExecutor] 使用 Windows named pipe");
+            return "npipe:////./pipe/docker_engine";
+        }
+        
+        // 3. 默认尝试本地 TCP 连接（远程 Docker 场景）
+        System.out.println("[PythonDockerExecutor] 使用默认 Docker Host (tcp://localhost:2375)");
+        return "tcp://localhost:2375";
     }
     
     @Override
@@ -320,15 +363,15 @@ public class PythonDockerExecutor implements NodeExecutor {
                 throw new TimeoutException("脚本执行超时 (" + timeoutSeconds + "秒)");
             }
             
-            Thread.sleep(100);
+            Thread.sleep(500);
         }
         
         // 获取退出码
         var inspectResponse = dockerClient.inspectContainerCmd(containerId).exec();
         Integer exitCode = inspectResponse.getState().getExitCode();
         
-        // 收集日志 - 简化版本，直接从容器状态获取
-        String logs = "Executed successfully";
+        // 收集容器 stdout/stderr 日志
+        String logs = collectContainerLogs(containerId);
         
         // 检查退出码
         if (exitCode != null && exitCode != 0) {
@@ -338,6 +381,40 @@ public class PythonDockerExecutor implements NodeExecutor {
         System.out.println("[PythonDockerExecutor] 执行完成，日志：" + logs.length() + " 字节");
         
         return logs;
+    }
+    
+    /**
+     * 收集容器的 stdout/stderr 日志
+     * 
+     * @param containerId 容器 ID
+     * @return 日志内容
+     */
+    private String collectContainerLogs(String containerId) {
+        StringBuilder logs = new StringBuilder();
+        
+        try {
+            // 使用 logContainerCmd 收集 stdout 和 stderr
+            var logCmd = dockerClient.logContainerCmd(containerId)
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withTailAll();
+            
+            logCmd.exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame>() {
+                @Override
+                public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                    if (frame != null && frame.getPayload() != null) {
+                        logs.append(new String(frame.getPayload(), java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                    super.onNext(frame);
+                }
+            }).awaitCompletion();
+            
+        } catch (Exception e) {
+            System.err.println("[PythonDockerExecutor] 收集日志失败：" + e.getMessage());
+            logs.append("Failed to collect logs: ").append(e.getMessage());
+        }
+        
+        return logs.toString();
     }
     
     /**
