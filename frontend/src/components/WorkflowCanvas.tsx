@@ -28,6 +28,8 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import ResultPreview from './ResultPreview';
+import PythonConfigPanel from './PythonConfigPanel';
+import { PythonNode } from '../nodes/PythonNode';
 
 const { TextArea } = Input;
 const { Option, OptGroup } = Select;
@@ -71,6 +73,7 @@ function SimpleNode({ data, id }: any) {
 
 const nodeTypes = {
   simple: SimpleNode,
+  python_script: PythonNode,
 };
 
 const initialNodes: Node[] = [
@@ -104,12 +107,12 @@ export default function WorkflowCanvas() {
     [setEdges]
   );
 
-  const addNode = (type: string, label: string) => {
+  const addNode = (type: string, label: string, icon: string = label.split(' ')[0]) => {
     const newNode: Node = {
       id: `node-${Date.now()}`,
-      type: 'simple',
+      type: type === 'python' ? 'python_script' : 'simple',
       position: { x: Math.random() * 400 + 50, y: Math.random() * 400 + 50 },
-      data: { label, icon: label.split(' ')[0] },
+      data: { label, icon, config: {} },
     };
     setNodes((nds) => [...nds, newNode]);
   };
@@ -281,6 +284,9 @@ export default function WorkflowCanvas() {
               <Button icon={<RobotOutlined />} onClick={() => addNode('llm', 'LLM 节点')} block>
                 LLM 节点
               </Button>
+              <Button icon={<span>🐍</span>} onClick={() => addNode('python', 'Python 脚本', '🐍')} block>
+                Python 脚本
+              </Button>
               <Button icon={<ThunderboltOutlined />} onClick={() => addNode('process', '处理节点')} block>
                 处理节点
               </Button>
@@ -343,6 +349,23 @@ export default function WorkflowCanvas() {
           {selectedNode ? (
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               {/* 节点配置 */}
+              {selectedNode.type === 'python_script' ? (
+                <PythonConfigPanel
+                  node={selectedNode}
+                  onClose={() => setSelectedNode(null)}
+                  onSave={(data) => {
+                    setNodes((nds) =>
+                      nds.map((node) => {
+                        if (node.id === selectedNode.id) {
+                          return { ...node, data: { ...node.data, ...data } };
+                        }
+                        return node;
+                      })
+                    );
+                    message.success('Python 脚本配置已保存');
+                  }}
+                />
+              ) : (
               <Card
                 title={<><SettingOutlined /> {selectedNode.data.icon} {selectedNode.data.label} - 配置</>}
                 size="small"
@@ -468,6 +491,7 @@ export default function WorkflowCanvas() {
                   <CheckCircleOutlined /> 配置已自动保存
                 </div>
               </Card>
+              )}
 
               {/* 执行结果 */}
               <Card
