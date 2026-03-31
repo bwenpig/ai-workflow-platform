@@ -1,17 +1,19 @@
 /**
  * 导出功能测试 (F035)
- * 测试用例：3 个
+ * 测试用例：补充至 15+ 个
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { 
   getExportPreview,
   exportWorkflowAsString,
+  exportWorkflow,
   downloadFile,
 } from '../../io/export';
 import { WorkflowSchema } from '../../io/schema';
 import { useNodeStore } from '../../store/nodeStore';
 import { useEdgeStore } from '../../store/edgeStore';
+import { useViewportStore } from '../../store/viewportStore';
 
 describe('F035 - 导出 JSON 功能', () => {
   beforeEach(() => {
@@ -104,7 +106,6 @@ describe('F035 - 导出 JSON 功能', () => {
 
 describe('downloadFile 工具函数', () => {
   it('应创建并触发下载链接', () => {
-    // Mock document.createElement
     const mockLink = {
       href: '',
       download: '',
@@ -123,9 +124,202 @@ describe('downloadFile 工具函数', () => {
     expect(mockLink.click).toHaveBeenCalled();
     expect(removeChildSpy).toHaveBeenCalled();
 
-    // 清理
     createElementSpy.mockRestore();
     appendChildSpy.mockRestore();
     removeChildSpy.mockRestore();
+  });
+
+  it('应处理默认 MIME 类型', () => {
+    const mockLink = {
+      href: '',
+      download: '',
+      style: {} as any,
+      click: vi.fn(),
+    };
+    
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as any);
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as any);
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as any);
+
+    downloadFile('test content', 'test.json');
+
+    expect(mockLink.href).toBeDefined();
+    expect(mockLink.download).toBe('test.json');
+  });
+});
+
+
+
+describe('exportWorkflow', () => {
+  beforeEach(() => {
+    const nodeState = useNodeStore.getState();
+    const edgeState = useEdgeStore.getState();
+    [...nodeState.nodes].forEach(n => nodeState.removeNode(n.id));
+    [...edgeState.edges].forEach(e => edgeState.removeEdge(e.id));
+  });
+
+  it('应成功导出工作流', async () => {
+    useNodeStore.getState().addNode({
+      id: 'node-1',
+      type: 'python',
+      position: { x: 100, y: 100 },
+      data: { label: '测试' },
+    });
+
+    const result = await exportWorkflow({ pretty: true });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('应处理空工作流导出', async () => {
+    const result = await exportWorkflow({ pretty: true });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('应处理导出异常', async () => {
+    // 模拟异常情况
+    vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('序列化失败');
+    });
+
+    const result = await exportWorkflow({ pretty: true });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
+
+    vi.restoreAllMocks();
+  });
+});
+
+describe('getExportPreview', () => {
+  beforeEach(() => {
+    const nodeState = useNodeStore.getState();
+    const edgeState = useEdgeStore.getState();
+    [...nodeState.nodes].forEach(n => nodeState.removeNode(n.id));
+    [...edgeState.edges].forEach(e => edgeState.removeEdge(e.id));
+  });
+
+  it('应返回空工作流预览', () => {
+    const preview = getExportPreview();
+    expect(preview.nodeCount).toBe(0);
+    expect(preview.edgeCount).toBe(0);
+    expect(preview.nodes).toHaveLength(0);
+  });
+
+  it('应返回多个节点的预览', () => {
+    useNodeStore.getState().addNode({
+      id: 'node-1',
+      type: 'python',
+      position: { x: 0, y: 0 },
+      data: { label: '节点 1' },
+    });
+    useNodeStore.getState().addNode({
+      id: 'node-2',
+      type: 'python',
+      position: { x: 100, y: 100 },
+      data: { label: '节点 2' },
+    });
+    useNodeStore.getState().addNode({
+      id: 'node-3',
+      type: 'condition',
+      position: { x: 200, y: 200 },
+      data: { label: '节点 3' },
+    });
+
+    const preview = getExportPreview();
+    expect(preview.nodeCount).toBe(3);
+    expect(preview.nodes.length).toBe(3);
+    expect(preview.nodes[0].label).toBe('节点 1');
+  });
+
+  it('应返回边的预览', () => {
+    useNodeStore.getState().addNode({
+      id: 'node-1',
+      type: 'python',
+      position: { x: 0, y: 0 },
+      data: {},
+    });
+    useNodeStore.getState().addNode({
+      id: 'node-2',
+      type: 'python',
+      position: { x: 100, y: 100 },
+      data: {},
+    });
+    useEdgeStore.getState().addEdge({
+      id: 'edge-1',
+      source: 'node-1',
+      target: 'node-2',
+    });
+
+    const preview = getExportPreview();
+    expect(preview.edgeCount).toBe(1);
+  });
+
+  it('应包含节点类型信息', () => {
+    useNodeStore.getState().addNode({
+      id: 'node-1',
+      type: 'condition',
+      position: { x: 0, y: 0 },
+      data: { label: '条件节点' },
+    });
+
+    const preview = getExportPreview();
+    expect(preview.nodes[0].type).toBe('condition');
+  });
+
+  it('应处理大量节点', () => {
+    for (let i = 0; i < 100; i++) {
+      useNodeStore.getState().addNode({
+        id: `node-${i}`,
+        type: 'python',
+        position: { x: i * 10, y: i * 10 },
+        data: { label: `节点${i}` },
+      });
+    }
+
+    const preview = getExportPreview();
+    expect(preview.nodeCount).toBe(100);
+    expect(preview.nodes.length).toBe(100);
+  });
+});
+
+describe('exportWorkflowAsString', () => {
+  beforeEach(() => {
+    const nodeState = useNodeStore.getState();
+    const edgeState = useEdgeStore.getState();
+    [...nodeState.nodes].forEach(n => nodeState.removeNode(n.id));
+    [...edgeState.edges].forEach(e => edgeState.removeEdge(e.id));
+  });
+
+  it('应导出包含 viewport 的工作流', () => {
+    useViewportStore.getState().updateViewport({ zoom: 1.5, pan: { x: 100, y: 200 } });
+
+    const result = exportWorkflowAsString({ pretty: false });
+    const parsed = JSON.parse(result);
+
+    expect(parsed.viewport).toBeDefined();
+  });
+
+  it('应处理特殊字符', () => {
+    useNodeStore.getState().addNode({
+      id: 'node-1',
+      type: 'python',
+      position: { x: 0, y: 0 },
+      data: { label: '测试\n换行', script: 'print("Hello, 世界！")' },
+    });
+
+    const result = exportWorkflowAsString({ pretty: false });
+    const parsed = JSON.parse(result);
+
+    expect(parsed.nodes[0].data.script).toContain('世界');
+  });
+
+  it('应处理空数据', () => {
+    const result = exportWorkflowAsString({ pretty: false });
+    const parsed = JSON.parse(result);
+
+    expect(parsed.nodes).toHaveLength(0);
+    expect(parsed.edges).toHaveLength(0);
   });
 });
