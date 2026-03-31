@@ -11,7 +11,7 @@ import com.ben.workflow.spi.ModelExecutionContext;
 import com.ben.workflow.spi.ModelExecutionResult;
 import com.ben.workflow.spi.ExecutorRegistry;
 import com.ben.workflow.repository.ExecutionRepository;
-import com.ben.workflow.websocket.WebSocketNotificationService;
+import com.ben.workflow.spi.NotificationService;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Mono;
@@ -24,17 +24,28 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class DagWorkflowEngine implements WorkflowEngine {
 
-    private final WebSocketNotificationService notificationService;
-    private final ExecutionRepository executionRepository;
+    private final NotificationService notificationService;
+    protected ExecutionRepository executionRepository;  // protected 用于测试
     private final ExecutorRegistry executorRegistry;
     private final Map<String, ExecutionState> executionStates = new ConcurrentHashMap<>();
     
     @Autowired
-    public DagWorkflowEngine(WebSocketNotificationService notificationService, 
+    public DagWorkflowEngine(NotificationService notificationService, 
                             ExecutionRepository executionRepository,
                             ExecutorRegistry executorRegistry) {
         this.notificationService = notificationService;
         this.executionRepository = executionRepository;
+        this.executorRegistry = executorRegistry;
+    }
+    
+    // 测试用构造函数
+    DagWorkflowEngine(NotificationService notificationService,
+                     Object executionRepository,
+                     ExecutorRegistry executorRegistry) {
+        this.notificationService = notificationService;
+        if (executionRepository instanceof ExecutionRepository) {
+            this.executionRepository = (ExecutionRepository) executionRepository;
+        }
         this.executorRegistry = executorRegistry;
     }
 
