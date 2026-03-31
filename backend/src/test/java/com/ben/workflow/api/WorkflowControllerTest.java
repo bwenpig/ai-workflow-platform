@@ -292,6 +292,8 @@ class WorkflowControllerTest {
                     } else if (methodName.equals("executeWorkflow")) {
                         var method = WorkflowController.class.getMethod(methodName, String.class, Map.class, String.class);
                         assertEquals(String.class, method.getParameterTypes()[0]);
+                    } else {
+                        fail("方法不存在：" + methodName);
                     }
                 } catch (NoSuchMethodException ex) {
                     fail("方法不存在：" + methodName);

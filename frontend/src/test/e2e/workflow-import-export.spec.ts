@@ -17,7 +17,7 @@ test.describe('工作流导入导出', () => {
 
   test('应导出工作流为 JSON', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -53,7 +53,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持导出为图片', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -75,7 +75,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持导出为 PDF', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -110,7 +110,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持分享工作流链接', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -147,7 +147,7 @@ test.describe('工作流导入导出', () => {
 
   test('应自动保存工作流', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -160,7 +160,7 @@ test.describe('工作流导入导出', () => {
 
   test('应显示保存状态', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -170,7 +170,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持版本历史', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -194,7 +194,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持恢复历史版本', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -222,7 +222,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持批量导出', async ({ page }) => {
     // 添加多个节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     
     await pythonNode.dragTo(canvas, { targetPosition: { x: 100, y: 100 } })
@@ -255,7 +255,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持导出预览', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -269,7 +269,7 @@ test.describe('工作流导入导出', () => {
 
   test('应支持自定义导出选项', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点 | 处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     

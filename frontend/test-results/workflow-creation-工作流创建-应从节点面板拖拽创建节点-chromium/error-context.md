@@ -1,0 +1,82 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - heading "🚀 AI Workflow Platform" [level=1] [ref=e6]
+      - navigation [ref=e7]:
+        - button "📋 画布编辑器" [ref=e8] [cursor=pointer]
+        - button "📁 工作流列表" [ref=e9] [cursor=pointer]
+    - generic [ref=e10]: Ben's AI Lab © 2026
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - img "appstore" [ref=e17]:
+              - img [ref=e18]
+            - text: 节点工具箱
+          - generic [ref=e20]:
+            - button "📝 输入节点" [ref=e22] [cursor=pointer]:
+              - generic [ref=e23]: 📝
+              - generic [ref=e24]: 输入节点
+            - button "🎨 模型节点" [ref=e26] [cursor=pointer]:
+              - generic [ref=e27]: 🎨
+              - generic [ref=e28]: 模型节点
+            - button "robot LLM 节点" [ref=e30] [cursor=pointer]:
+              - img "robot" [ref=e32]:
+                - img [ref=e33]
+              - generic [ref=e35]: LLM 节点
+            - button "thunderbolt 处理节点" [active] [ref=e37] [cursor=pointer]:
+              - img "thunderbolt" [ref=e39]:
+                - img [ref=e40]
+              - generic [ref=e42]: 处理节点
+            - button "export 输出节点" [ref=e44] [cursor=pointer]:
+              - img "export" [ref=e46]:
+                - img [ref=e47]
+              - generic [ref=e49]: 输出节点
+        - application [ref=e51]:
+          - generic [ref=e53]:
+            - generic:
+              - generic:
+                - img:
+                  - group "Edge from 1 to 2"
+                - img:
+                  - group "Edge from 2 to 3"
+              - generic:
+                - group [ref=e54]:
+                  - generic [ref=e57]:
+                    - generic [ref=e58]: 📝
+                    - generic [ref=e59]: 输入节点
+                - group [ref=e61]:
+                  - generic [ref=e64]:
+                    - generic [ref=e65]: 🎨
+                    - generic [ref=e66]: 可灵模型
+                - group [ref=e68]:
+                  - generic [ref=e71]:
+                    - generic [ref=e72]: 📤
+                    - generic [ref=e73]: 输出节点
+          - generic "Control Panel" [ref=e75]:
+            - button "Zoom In" [ref=e76] [cursor=pointer]:
+              - img [ref=e77]
+            - button "Zoom Out" [ref=e79] [cursor=pointer]:
+              - img [ref=e80]
+            - button "Fit View" [ref=e82] [cursor=pointer]:
+              - img [ref=e83]
+            - button "Toggle Interactivity" [ref=e85] [cursor=pointer]:
+              - img [ref=e86]
+          - img "Mini Map" [ref=e89]
+          - img
+          - link "React Flow attribution" [ref=e94] [cursor=pointer]:
+            - /url: https://reactflow.dev
+            - text: React Flow
+      - generic [ref=e96]:
+        - button "play-circle 执行工作流" [ref=e97] [cursor=pointer]:
+          - img "play-circle" [ref=e99]:
+            - img [ref=e100]
+          - generic [ref=e103]: 执行工作流
+        - generic [ref=e106]:
+          - img "No data" [ref=e108]
+          - generic [ref=e114]: 点击左侧节点卡片，查看该节点的配置和执行结果
+```

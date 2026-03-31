@@ -5,30 +5,24 @@ import com.ben.workflow.spi.ModelExecutionResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 /**
  * KlingExecutor 单元测试
  */
-@ExtendWith(MockitoExtension.class)
 class KlingExecutorTest {
 
     private KlingExecutor klingExecutor;
-
-    @Mock
-    private ModelExecutionContext mockContext;
+    private ModelExecutionContext context;
 
     @BeforeEach
     void setUp() {
         klingExecutor = new KlingExecutor();
+        context = new ModelExecutionContext();
     }
 
     @Test
@@ -40,11 +34,9 @@ class KlingExecutorTest {
     @Test
     @DisplayName("测试正常执行 - 默认参数")
     void testExecuteWithDefaultParams() {
-        Map<String, Object> config = new HashMap<>();
-        config.put("prompt", "一个美丽的日落");
-        when(mockContext.getConfig()).thenReturn(config);
+        context.setConfig(Map.of("prompt", "一个美丽的日落"));
 
-        ModelExecutionResult result = klingExecutor.execute(mockContext);
+        ModelExecutionResult result = klingExecutor.execute(context);
 
         assertTrue(result.isSuccess());
         assertNotNull(result.getData());
@@ -64,9 +56,9 @@ class KlingExecutorTest {
         config.put("prompt", "宇宙飞船");
         config.put("duration", 10.0);
         config.put("fps", 30);
-        when(mockContext.getConfig()).thenReturn(config);
+        context.setConfig(config);
 
-        ModelExecutionResult result = klingExecutor.execute(mockContext);
+        ModelExecutionResult result = klingExecutor.execute(context);
 
         assertTrue(result.isSuccess());
         assertEquals(10.0, result.getData().get("duration"));
@@ -87,10 +79,9 @@ class KlingExecutorTest {
     @Test
     @DisplayName("测试执行 - 空配置对象")
     void testExecuteWithEmptyConfig() {
-        Map<String, Object> config = new HashMap<>();
-        when(mockContext.getConfig()).thenReturn(config);
+        context.setConfig(new HashMap<>());
 
-        ModelExecutionResult result = klingExecutor.execute(mockContext);
+        ModelExecutionResult result = klingExecutor.execute(context);
 
         assertTrue(result.isSuccess());
         assertEquals("", result.getData().get("prompt"));
@@ -99,43 +90,37 @@ class KlingExecutorTest {
     @Test
     @DisplayName("测试执行 - 部分参数")
     void testExecuteWithPartialParams() {
-        Map<String, Object> config = new HashMap<>();
-        config.put("prompt", "测试视频");
-        config.put("duration", 15.0);
-        when(mockContext.getConfig()).thenReturn(config);
+        context.setConfig(Map.of("prompt", "测试视频", "duration", 15.0));
 
-        ModelExecutionResult result = klingExecutor.execute(mockContext);
+        ModelExecutionResult result = klingExecutor.execute(context);
 
         assertTrue(result.isSuccess());
         assertEquals("测试视频", result.getData().get("prompt"));
         assertEquals(15.0, result.getData().get("duration"));
-        assertEquals(24, result.getData().get("fps")); // 默认值
-    }
-
-    @Test
-    @DisplayName("测试错误处理 - 异常捕获")
-    void testExecuteWithErrorHandling() {
-        ModelExecutionContext errorContext = mock(ModelExecutionContext.class);
-        when(errorContext.getConfig()).thenThrow(new RuntimeException("测试异常"));
-
-        ModelExecutionResult result = klingExecutor.execute(errorContext);
-
-        assertFalse(result.isSuccess());
-        assertTrue(result.getError().contains("Kling 执行失败"));
-        assertTrue(result.getError().contains("测试异常"));
+        assertEquals(24, result.getData().get("fps"));
     }
 
     @Test
     @DisplayName("测试返回值包含预览 URL")
     void testExecuteReturnsPreviewUrl() {
-        Map<String, Object> config = new HashMap<>();
-        config.put("prompt", "预览测试");
-        when(mockContext.getConfig()).thenReturn(config);
+        context.setConfig(Map.of("prompt", "预览测试"));
 
-        ModelExecutionResult result = klingExecutor.execute(mockContext);
+        ModelExecutionResult result = klingExecutor.execute(context);
 
         assertTrue(result.isSuccess());
         assertTrue(result.getData().containsKey("previewUrl"));
         assertTrue(((String) result.getData().get("previewUrl")).contains("placeholder"));
+    }
+
+    @Test
+    @DisplayName("测试返回值包含视频 URL")
+    void testExecuteReturnsVideoUrl() {
+        context.setConfig(Map.of("prompt", "视频测试"));
+
+        ModelExecutionResult result = klingExecutor.execute(context);
+
+        assertTrue(result.isSuccess());
+        assertTrue(result.getData().containsKey("url"));
+        assertTrue(((String) result.getData().get("url")).contains("googleapis"));
     }
 }

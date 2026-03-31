@@ -1,6 +1,5 @@
 package com.ben.workflow.websocket;
 
-import com.ben.workflow.spi.NotificationService;
 import org.springframework.stereotype.Service;
 import java.util.Map;
 
@@ -22,7 +21,7 @@ public class WebSocketNotificationService implements NotificationService {
     }
 
     @Override
-    public void notifyNodeComplete(String instanceId, String nodeId, Object result) {
+    public void notifyNodeComplete(String instanceId, String nodeId, Map<String, Object> result) {
         System.out.println("[WebSocket] 节点完成：instanceId=" + instanceId + ", nodeId=" + nodeId);
     }
 
@@ -32,7 +31,17 @@ public class WebSocketNotificationService implements NotificationService {
     }
 
     @Override
-    public void notifyExecutionComplete(String instanceId, Object result) {
+    public void notifyExecutionComplete(String instanceId, Map<String, Object> outputs) {
         System.out.println("[WebSocket] 执行完成：instanceId=" + instanceId);
+    }
+
+    @Override
+    public void notifyExecutionFailed(String instanceId, String errorMessage) {
+        System.err.println("[WebSocket] 执行失败：instanceId=" + instanceId + ", error=" + errorMessage);
+    }
+
+    @Override
+    public void notifyProgress(String instanceId, String nodeId, int progress, String message) {
+        System.out.println("[WebSocket] 进度更新：instanceId=" + instanceId + ", nodeId=" + nodeId + ", progress=" + progress);
     }
 }

@@ -143,8 +143,8 @@ class WebSocketNotificationServiceTest {
     }
 
     @Test
-    @DisplayName("测试实现 NotificationService 接口")
-    void testImplementsNotificationService() {
-        assertTrue(notificationService instanceof NotificationService);
+    @DisplayName("测试服务类有 Service 注解")
+    void testHasServiceAnnotation() {
+        assertTrue(notificationService.getClass().isAnnotationPresent(org.springframework.stereotype.Service.class));
     }
 }

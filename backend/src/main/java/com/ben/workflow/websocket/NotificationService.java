@@ -13,6 +13,8 @@ public interface NotificationService {
 
     void notifyNodeComplete(String executionId, String nodeId, Map<String, Object> result);
 
+    void notifyNodeFailed(String executionId, String nodeId, String errorMessage);
+
     void notifyExecutionComplete(String executionId, Map<String, Object> outputs);
 
     void notifyExecutionFailed(String executionId, String errorMessage);

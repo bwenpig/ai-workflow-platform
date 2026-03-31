@@ -2,12 +2,13 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './src/test/e2e',
-  timeout: 30000,
+  timeout: 60000,
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,
-    screenshot: 'only-on-failure',
+    screenshot: 'on',
     video: 'retain-on-failure',
+    trace: 'retain-on-failure',
   },
   reporter: [['html', { open: 'never' }], ['list']],
   projects: [

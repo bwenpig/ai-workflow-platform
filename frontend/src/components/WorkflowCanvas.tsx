@@ -19,7 +19,6 @@ import { ConfigProvider, Button, Card, Input, Select, Space, Divider, Empty, mes
 import {
   PlayCircleOutlined,
   SettingOutlined,
-  ResultOutlined,
   AppstoreOutlined,
   RobotOutlined,
   ThunderboltOutlined,
@@ -29,7 +28,6 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import ResultPreview from './ResultPreview';
-import 'antd/dist/reset.css';
 
 const { TextArea } = Input;
 const { Option, OptGroup } = Select;
@@ -473,7 +471,7 @@ export default function WorkflowCanvas() {
 
               {/* 执行结果 */}
               <Card
-                title={<><ResultOutlined /> {selectedNode.data.icon} {selectedNode.data.label} - 执行结果</>}
+                title={<><CheckCircleOutlined /> {selectedNode.data.icon} {selectedNode.data.label} - 执行结果</>}
                 size="small"
                 bordered
               >

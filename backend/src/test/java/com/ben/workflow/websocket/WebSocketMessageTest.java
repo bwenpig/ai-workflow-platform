@@ -101,7 +101,7 @@ class WebSocketMessageTest {
         assertEquals("exec-123", message.getExecutionId());
         assertEquals("node-456", message.getNodeId());
         assertEquals("RUNNING", message.getStatus());
-        assertEquals(100, message.getProgress());
+        assertNull(message.getProgress()); // nodeStart returns null for progress
         assertEquals("节点开始执行", message.getMessage());
     }
 

@@ -33,7 +33,7 @@ test.describe('工作流执行', () => {
 
   test('应显示节点执行结果', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -54,7 +54,7 @@ test.describe('工作流执行', () => {
 
   test('应处理执行失败', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -74,7 +74,7 @@ test.describe('工作流执行', () => {
 
   test('应支持停止执行', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -92,7 +92,7 @@ test.describe('工作流执行', () => {
 
   test('应显示执行日志', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -110,7 +110,7 @@ test.describe('工作流执行', () => {
 
   test('应支持重新执行', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -129,7 +129,7 @@ test.describe('工作流执行', () => {
 
   test('应显示执行历史记录', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -148,7 +148,7 @@ test.describe('工作流执行', () => {
 
   test('应支持并行执行多个节点', async ({ page }) => {
     // 添加多个节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     
     await pythonNode.dragTo(canvas, { targetPosition: { x: 100, y: 100 } })
@@ -166,7 +166,7 @@ test.describe('工作流执行', () => {
 
   test('应显示执行进度', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
@@ -180,7 +180,7 @@ test.describe('工作流执行', () => {
 
   test('应支持导出执行结果', async ({ page }) => {
     // 添加节点
-    const pythonNode = page.getByText(/Python 脚本/)
+    const pythonNode = page.getByText(/处理节点|处理|Process/)
     const canvas = page.getByTestId('canvas')
     await pythonNode.dragTo(canvas, { targetPosition: { x: 200, y: 200 } })
     
