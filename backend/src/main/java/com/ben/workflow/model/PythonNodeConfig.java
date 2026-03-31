@@ -14,6 +14,7 @@ public class PythonNodeConfig {
     private String pythonVersion = "3.9"; // Python 版本
     private Map<String, String> env;    // 环境变量
     private Boolean networkEnabled = false; // 是否允许网络访问
+    private Long memoryLimit = 128L;    // 内存限制 (MB)
     
     public String getScript() { return script; }
     public void setScript(String script) { this.script = script; }
@@ -35,4 +36,7 @@ public class PythonNodeConfig {
     
     public Boolean getNetworkEnabled() { return networkEnabled; }
     public void setNetworkEnabled(Boolean networkEnabled) { this.networkEnabled = networkEnabled; }
+    
+    public Long getMemoryLimit() { return memoryLimit; }
+    public void setMemoryLimit(Long memoryLimit) { this.memoryLimit = memoryLimit; }
 }
