@@ -40,4 +40,10 @@ public class GenerationRequest {
     public void setInputImages(List<String> inputImages) { this.inputImages = inputImages; }
     public String getCallbackUrl() { return callbackUrl; }
     public void setCallbackUrl(String callbackUrl) { this.callbackUrl = callbackUrl; }
+    public Map<String, Object> getParams() { return params; }
+    public void setParams(Map<String, Object> params) { this.params = params; }
+    public Integer getPriority() { return priority; }
+    public void setPriority(Integer priority) { this.priority = priority; }
+    public List<String> getInputVideos() { return inputVideos; }
+    public void setInputVideos(List<String> inputVideos) { this.inputVideos = inputVideos; }
 }

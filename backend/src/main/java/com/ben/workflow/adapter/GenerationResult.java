@@ -50,4 +50,10 @@ public class GenerationResult {
     public void setPreviewUrl(String previewUrl) { this.previewUrl = previewUrl; }
     public Integer getFps() { return fps; }
     public void setFps(Integer fps) { this.fps = fps; }
+    public ModelProvider.TaskStatus getStatus() { return status; }
+    public void setStatus(ModelProvider.TaskStatus status) { this.status = status; }
+    public Map<String, Object> getMetadata() { return metadata; }
+    public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata; }
+    public Integer getDuration() { return duration; }
+    public void setDuration(Integer duration) { this.duration = duration; }
 }

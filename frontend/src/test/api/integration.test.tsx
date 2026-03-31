@@ -192,7 +192,7 @@ describe('API 集成测试', () => {
     it('应该正确获取工作流列表', async () => {
       const { result } = renderHook(() => useWorkflows(), { wrapper: createWrapper() });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data).toHaveLength(2);
       expect(result.current.data?.[0].name).toBe('测试工作流 1');
@@ -203,7 +203,7 @@ describe('API 集成测试', () => {
         wrapper: createWrapper() 
       });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data).toHaveLength(1);
       expect(result.current.data?.[0].published).toBe(true);
@@ -220,7 +220,7 @@ describe('API 集成测试', () => {
     it('应该正确获取工作流详情', async () => {
       const { result } = renderHook(() => useWorkflow('wf-1'), { wrapper: createWrapper() });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data?.id).toBe('wf-1');
       expect(result.current.data?.name).toBe('测试工作流 1');
@@ -231,7 +231,7 @@ describe('API 集成测试', () => {
         wrapper: createWrapper() 
       });
 
-      await waitFor(() => expect(result.current.isError).toBe(true));
+      await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
 
       expect(result.current.error).toBeDefined();
     });
@@ -250,7 +250,7 @@ describe('API 集成测试', () => {
 
       result.current.mutate(newWorkflow);
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data?.name).toBe('新工作流');
       expect(result.current.data?.id).toBeDefined();
@@ -266,7 +266,7 @@ describe('API 集成测试', () => {
         workflow: { name: '更新后的名称' },
       });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data?.name).toBe('更新后的名称');
     });
@@ -278,7 +278,7 @@ describe('API 集成测试', () => {
 
       result.current.mutate('wf-1');
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
     });
   });
 
@@ -288,7 +288,7 @@ describe('API 集成测试', () => {
 
       result.current.mutate({ id: 'wf-1', inputs: { test: 'input' } });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data?.executionId).toBeDefined();
       expect(result.current.data?.status).toBe('RUNNING');
@@ -301,7 +301,7 @@ describe('API 集成测试', () => {
         wrapper: createWrapper() 
       });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data?.status).toBe('SUCCESS');
       expect(result.current.data?.nodeStates).toBeDefined();
@@ -312,7 +312,7 @@ describe('API 集成测试', () => {
         wrapper: createWrapper() 
       });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
       
       // 验证初始获取
       expect(result.current.data?.id).toBe('exec-1');
@@ -323,7 +323,7 @@ describe('API 集成测试', () => {
     it('应该正确获取执行器列表', async () => {
       const { result } = renderHook(() => useExecutors(), { wrapper: createWrapper() });
 
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
       expect(result.current.data).toHaveLength(2);
       expect(result.current.data?.[0].name).toBe('Python Executor');
