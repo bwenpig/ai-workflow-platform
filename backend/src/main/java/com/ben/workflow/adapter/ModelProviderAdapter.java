@@ -1,22 +1,23 @@
 package com.ben.workflow.adapter;
 
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * ModelProvider 到 ModelExecutor 的适配器
- * 将 adapter 层的 ModelProvider 适配到 spi 层的 ModelExecutor 接口
+ * ModelProvider 到 NodeExecutor 的适配器
+ * 将 adapter 层的 ModelProvider 适配到 dag-scheduler 的 NodeExecutor 接口
  */
 @Component
-public class ModelProviderAdapter implements ModelExecutor {
+public class ModelProviderAdapter implements NodeExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(ModelProviderAdapter.class);
 
@@ -31,17 +32,28 @@ public class ModelProviderAdapter implements ModelExecutor {
         return "adapter"; // 通用适配器，实际类型由 context 决定
     }
 
+    @Override
+    public String getName() {
+        return "Model Provider Adapter";
+    }
+
+    @Override
+    public String getDescription() {
+        return "通用模型提供者适配器";
+    }
+
     /**
      * 执行模型调用
      */
-    public ModelExecutionResult execute(ModelExecutionContext context) {
-        ModelExecutionResult result = new ModelExecutionResult();
+    @Override
+    public NodeExecutionResult execute(NodeExecutionContext context) throws Exception {
+        LocalDateTime startTime = LocalDateTime.now();
+        String nodeId = context != null ? context.getNodeId() : "unknown";
         
-        String nodeType = context.getNodeType();
+        String nodeType = context != null ? context.getNodeType() : null;
         if (nodeType == null) {
-            result.setSuccess(false);
-            result.setError("节点类型为空");
-            return result;
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(nodeId, "节点类型为空", null, startTime, endTime);
         }
 
         // 获取对应的 ModelProvider
@@ -49,9 +61,8 @@ public class ModelProviderAdapter implements ModelExecutor {
                 .orElse(null);
 
         if (provider == null) {
-            result.setSuccess(false);
-            result.setError("未找到模型提供者：" + nodeType);
-            return result;
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(nodeId, "未找到模型提供者：" + nodeType, null, startTime, endTime);
         }
 
         try {
@@ -63,58 +74,44 @@ public class ModelProviderAdapter implements ModelExecutor {
                     .block(java.time.Duration.ofMinutes(5));
 
             if (generationResult == null) {
-                result.setSuccess(false);
-                result.setError("模型返回空结果");
-                return result;
+                LocalDateTime endTime = LocalDateTime.now();
+                return NodeExecutionResult.failed(nodeId, "模型返回空结果", null, startTime, endTime);
             }
 
             if (generationResult.getStatus() == ModelProvider.TaskStatus.FAILED) {
-                result.setSuccess(false);
-                result.setError(generationResult.getErrorMessage());
-                return result;
+                LocalDateTime endTime = LocalDateTime.now();
+                return NodeExecutionResult.failed(nodeId, generationResult.getErrorMessage(), null, startTime, endTime);
             }
 
             // 转换为 Map 结果
             Map<String, Object> data = convertToData(generationResult, provider);
-            result.setData(data);
-            result.setSuccess(true);
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.success(nodeId, data, startTime, endTime);
 
         } catch (Exception e) {
             log.error("模型执行失败：nodeType={}, error={}", nodeType, e.getMessage(), e);
-            result.setSuccess(false);
-            result.setError("模型执行异常：" + e.getMessage());
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(nodeId, e, startTime, endTime);
         }
-
-        return result;
     }
 
-    private GenerationRequest buildRequest(ModelExecutionContext context) {
+    private GenerationRequest buildRequest(NodeExecutionContext context) {
         GenerationRequest request = new GenerationRequest();
         
-        // 从 inputs 或 config 获取 prompt
+        // 从 inputs 获取 prompt
         Object promptObj = context.getInputs().get("prompt");
-        if (promptObj == null && context.getConfig() != null) {
-            promptObj = context.getConfig().get("prompt");
-        }
-        
         if (promptObj != null) {
             request.setPrompt(promptObj.toString());
         }
 
         // 反向提示词
         Object negativePromptObj = context.getInputs().get("negativePrompt");
-        if (negativePromptObj == null && context.getConfig() != null) {
-            negativePromptObj = context.getConfig().get("negativePrompt");
-        }
         if (negativePromptObj != null) {
             request.setNegativePrompt(negativePromptObj.toString());
         }
 
         // 参数
-        Map<String, Object> params = new HashMap<>();
-        if (context.getConfig() != null) {
-            params.putAll(context.getConfig());
-        }
+        Map<String, Object> params = new HashMap<>(context.getInputs());
         request.setParams(params);
 
         return request;

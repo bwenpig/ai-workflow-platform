@@ -1,0 +1,18 @@
+{
+  "name": "数据处理",
+  "description": "使用 pandas 进行数据处理和分析",
+  "category": "数据",
+  "script": "# 数据处理示例\nimport pandas as pd\nimport json\n\n# 从输入获取数据\ndata = inputs.get('data', [])\n\n# 创建 DataFrame\ndf = pd.DataFrame(data)\n\n# 基本统计\noutputs['row_count'] = len(df)\noutputs['column_count'] = len(df.columns)\noutputs['columns'] = list(df.columns)\n\n# 数值列统计\nnumeric_cols = df.select_dtypes(include=['number']).columns\nif len(numeric_cols) > 0:\n    outputs['statistics'] = df[numeric_cols].describe().to_dict()\n\n# 转换为 JSON\noutputs['data_preview'] = df.head(5).to_dict('records')",
+  "inputs": {
+    "data": [
+      {"name": "Alice", "age": 25, "city": "Beijing"},
+      {"name": "Bob", "age": 30, "city": "Shanghai"},
+      {"name": "Charlie", "age": 35, "city": "Guangzhou"}
+    ]
+  },
+  "requirements": [
+    "pandas",
+    "numpy"
+  ],
+  "timeout": 30
+}

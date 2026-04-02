@@ -1,0 +1,20 @@
+{
+  "name": "Excel 处理",
+  "description": "读取和写入 Excel 文件",
+  "category": "数据",
+  "script": "# Excel 处理示例\nimport pandas as pd\nimport io\nimport base64\n\noperation = inputs.get('operation', 'read')\n\ntry:\n    if operation == 'read':\n        # 从 base64 读取 Excel\n        excel_data = inputs.get('excel_data', '')\n        sheet_name = inputs.get('sheet', 0)\n        \n        if excel_data.startswith('data:'):\n            excel_data = excel_data.split(',')[1]\n        \n        excel_bytes = base64.b64decode(excel_data)\n        df = pd.read_excel(io.BytesIO(excel_bytes), sheet_name=sheet_name)\n        \n        outputs['row_count'] = len(df)\n        outputs['column_count'] = len(df.columns)\n        outputs['columns'] = list(df.columns)\n        outputs['data'] = df.head(10).to_dict('records')\n        outputs['success'] = True\n    \n    elif operation == 'write':\n        # 从数据创建 Excel\n        data = inputs.get('data', [])\n        sheet_name = inputs.get('sheet', 'Sheet1')\n        \n        df = pd.DataFrame(data)\n        \n        # 写入 Excel\n        buffer = io.BytesIO()\n        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:\n            df.to_excel(writer, sheet_name=sheet_name, index=False)\n        \n        buffer.seek(0)\n        excel_base64 = base64.b64encode(buffer.getvalue()).decode()\n        outputs['excel_data'] = f'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{excel_base64}'\n        outputs['row_count'] = len(df)\n        outputs['success'] = True\n    \n    elif operation == 'merge':\n        # 合并多个 Excel\n        excel_files = inputs.get('files', [])\n        dfs = []\n        \n        for file_data in excel_files:\n            if file_data.startswith('data:'):\n                file_data = file_data.split(',')[1]\n            excel_bytes = base64.b64decode(file_data)\n            df = pd.read_excel(io.BytesIO(excel_bytes))\n            dfs.append(df)\n        \n        merged_df = pd.concat(dfs, ignore_index=True)\n        \n        buffer = io.BytesIO()\n        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:\n            merged_df.to_excel(writer, sheet_name='Merged', index=False)\n        \n        buffer.seek(0)\n        excel_base64 = base64.b64encode(buffer.getvalue()).decode()\n        outputs['excel_data'] = f'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{excel_base64}'\n        outputs['total_rows'] = len(merged_df)\n        outputs['success'] = True\n    \nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "operation": "write",
+    "data": [
+      {"name": "Alice", "age": 25, "city": "Beijing"},
+      {"name": "Bob", "age": 30, "city": "Shanghai"},
+      {"name": "Charlie", "age": 35, "city": "Guangzhou"}
+    ],
+    "sheet": "Users"
+  },
+  "requirements": [
+    "pandas",
+    "openpyxl"
+  ],
+  "timeout": 30
+}

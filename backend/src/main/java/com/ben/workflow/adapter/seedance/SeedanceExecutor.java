@@ -1,10 +1,11 @@
 package com.ben.workflow.adapter.seedance;
 
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,15 +13,22 @@ import java.util.Map;
  * Seedance 视频生成模型执行器
  */
 @NodeComponent(value = "seedance", name = "Seedance", description = "Seedance 文生视频模型")
-public class SeedanceExecutor implements ModelExecutor {
+public class SeedanceExecutor implements NodeExecutor {
 
     @Override
     public String getType() { return "seedance"; }
 
     @Override
-    public ModelExecutionResult execute(ModelExecutionContext context) {
+    public String getName() { return "Seedance"; }
+
+    @Override
+    public String getDescription() { return "Seedance 文生视频模型"; }
+
+    @Override
+    public NodeExecutionResult execute(NodeExecutionContext context) throws Exception {
         try {
-            Map<String, Object> config = context != null ? context.getConfig() : null;
+            LocalDateTime startTime = LocalDateTime.now();
+            Map<String, Object> config = context != null ? context.getInputs() : null;
             if (config == null) config = new HashMap<>();
             String prompt = (String) config.getOrDefault("prompt", "");
             Double duration = (Double) config.getOrDefault("duration", 10.0);
@@ -34,9 +42,11 @@ public class SeedanceExecutor implements ModelExecutor {
             result.put("duration", duration);
             result.put("fps", fps);
             
-            return ModelExecutionResult.success(result);
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.success(context != null ? context.getNodeId() : "unknown", result, startTime, endTime);
         } catch (Exception e) {
-            return ModelExecutionResult.failure("Seedance 执行失败：" + e.getMessage());
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(context != null ? context.getNodeId() : "unknown", e, LocalDateTime.now(), endTime);
         }
     }
 }

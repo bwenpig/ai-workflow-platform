@@ -1,29 +1,18 @@
 {
-  "id": "test-workflow-1",
-  "name": "测试工作流",
-  "version": "1.0.0",
+  "name": "Test Workflow",
+  "version": "1.0",
   "nodes": [
     {
       "id": "1",
-      "type": "input",
-      "position": { "x": 100, "y": 100 },
-      "data": { "label": "输入节点", "icon": "📝" }
-    },
-    {
-      "id": "2",
-      "type": "process",
-      "position": { "x": 300, "y": 100 },
-      "data": { "label": "处理节点", "icon": "⚙️" }
-    },
-    {
-      "id": "3",
-      "type": "output",
-      "position": { "x": 500, "y": 100 },
-      "data": { "label": "输出节点", "icon": "📤" }
+      "type": "python_script",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "config": {
+        "script": "print(\"test\")"
+      }
     }
   ],
-  "edges": [
-    { "id": "e1-2", "source": "1", "target": "2" },
-    { "id": "e2-3", "source": "2", "target": "3" }
-  ]
+  "edges": []
 }

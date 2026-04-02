@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useWorkflowStore, NodeStatus, LogEntry } from '../store/useWorkflowStore'
 
 // API 响应类型
@@ -76,7 +76,7 @@ export const useExecutionPolling = (executionId: string | null, enabled: boolean
   })
   
   // 同步状态到 Store
-  useCallback(() => {
+  useEffect(() => {
     if (!data) return
     
     // 更新执行状态

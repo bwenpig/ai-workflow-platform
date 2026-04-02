@@ -15,6 +15,7 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import '../styles/WorkflowCanvas.css';
 import { ConfigProvider, Button, Card, Input, Select, Space, Divider, Empty, message, Tag } from 'antd';
 import {
   PlayCircleOutlined,
@@ -34,39 +35,86 @@ import { PythonNode } from '../nodes/PythonNode';
 const { TextArea } = Input;
 const { Option, OptGroup } = Select;
 
-// 简化的节点组件
+// 简化的节点组件 - 参考 Dify/n8n 设计
 function SimpleNode({ data, id }: any) {
+  const nodeType = data.type || 'simple';
+  
+  // 节点类型颜色映射
+  const typeColors: Record<string, string> = {
+    input: '#10b981',      // 绿色
+    model: '#8b5cf6',      // 紫色
+    llm: '#f59e0b',        // 橙色
+    python: '#3b82f6',     // 蓝色
+    process: '#ef4444',    // 红色
+    output: '#06b6d4',     // 青色
+  };
+  
+  const headerColors: Record<string, string> = {
+    input: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+    model: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+    llm: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+    python: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+    process: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+    output: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)',
+  };
+  
+  const borderColor = typeColors[nodeType] || (
+    data.status === 'SUCCESS' ? '#52c41a' : 
+    data.status === 'FAILED' ? '#ff4d4f' : 
+    data.status === 'RUNNING' ? '#faad14' : '#d9d9d9'
+  );
+  
+  const headerBg = headerColors[nodeType] || '#f8fafc';
+  
   return (
     <div 
       data-testid={`node-${id}`}
       className="react-flow__node-simple"
       style={{
-      padding: '16px 24px',
-      borderRadius: '12px',
-      background: data.status === 'SUCCESS' ? '#f6ffed' : 
-                  data.status === 'FAILED' ? '#fff2f0' : 
-                  data.status === 'RUNNING' ? '#fffbe6' : '#fff',
-      border: `3px solid ${data.status === 'SUCCESS' ? '#52c41a' : 
-                          data.status === 'FAILED' ? '#ff4d4f' : 
-                          data.status === 'RUNNING' ? '#faad14' : '#d9d9d9'}`,
-      minWidth: '200px',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-    }}>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+        padding: '0',
+        borderRadius: '12px',
+        minWidth: '180px',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+        border: `2px solid ${borderColor}`,
+        overflow: 'hidden',
+      }}>
+      <Handle type="target" position={Position.Top} style={{ zIndex: 1 }} />
       
-      <div style={{ fontWeight: 600, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '22px' }}>{data.icon}</span>
+      {/* 节点头部 - 带颜色编码 */}
+      <div style={{
+        padding: '10px 12px',
+        background: headerBg,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontWeight: 600,
+        fontSize: '13px',
+        color: '#1e293b',
+      }}>
+        <span style={{ fontSize: '16px' }}>{data.icon}</span>
         <span>{data.label}</span>
         {data.status && (
-          <span style={{ marginLeft: 'auto', fontSize: '18px' }}>
-            {data.status === 'SUCCESS' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
-            {data.status === 'FAILED' && <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
-            {data.status === 'RUNNING' && <LoadingOutlined style={{ color: '#faad14' }} />}
+          <span style={{ marginLeft: 'auto', fontSize: '14px' }}>
+            {data.status === 'SUCCESS' && <CheckCircleOutlined style={{ color: '#10b981' }} />}
+            {data.status === 'FAILED' && <CloseCircleOutlined style={{ color: '#ef4444' }} />}
+            {data.status === 'RUNNING' && <LoadingOutlined style={{ color: '#3b82f6' }} />}
           </span>
         )}
       </div>
+      
+      {/* 节点内容 */}
+      <div style={{ padding: '12px' }}>
+        <div style={{ fontSize: '12px', color: '#64748b' }}>
+          {nodeType === 'python' && 'Python 脚本节点'}
+          {nodeType === 'model' && 'AI 模型节点'}
+          {nodeType === 'llm' && '大语言模型'}
+          {nodeType === 'input' && '数据输入'}
+          {nodeType === 'output' && '数据输出'}
+          {nodeType === 'process' && '数据处理'}
+        </div>
+      </div>
 
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <Handle type="source" position={Position.Bottom} style={{ zIndex: 1 }} />
     </div>
   );
 }
@@ -112,7 +160,7 @@ export default function WorkflowCanvas() {
       id: `node-${Date.now()}`,
       type: type === 'python' ? 'python_script' : 'simple',
       position: { x: Math.random() * 400 + 50, y: Math.random() * 400 + 50 },
-      data: { label, icon, config: {} },
+      data: { label, icon, type, config: {} },  // 添加 type 到 data 中
     };
     setNodes((nds) => [...nds, newNode]);
   };
@@ -259,9 +307,10 @@ export default function WorkflowCanvas() {
       <div style={{ width: '100vw', height: '100vh', display: 'flex', background: '#f0f2f5' }}>
         {/* 左侧画布区域 */}
         <div style={{ flex: 1, position: 'relative' }}>
-          {/* 顶部工具栏 */}
+          {/* 顶部工具栏 - 参考 Dify/n8n 设计 */}
           <Card
             size="small"
+            className="node-toolbox"
             style={{
               position: 'absolute',
               top: 12,
@@ -307,7 +356,7 @@ export default function WorkflowCanvas() {
               onNodeClick={onNodeClick}
               fitView
               nodeTypes={nodeTypes}
-              style={{ background: '#fafafa' }}
+              style={{ background: 'transparent' }}
               data-testid="react-flow"
             >
               <Controls />
@@ -333,14 +382,26 @@ export default function WorkflowCanvas() {
           padding: '20px',
           overflowY: 'auto',
         }}>
-          {/* 执行按钮 */}
+          {/* 执行按钮 - 参考 Dify 设计 */}
           <Button
             type="primary"
             size="large"
             icon={isExecuting ? <LoadingOutlined /> : <PlayCircleOutlined />}
             onClick={handleExecute}
             disabled={isExecuting}
-            style={{ width: '100%', marginBottom: '24px', height: '50px', fontSize: '16px' }}
+            style={{
+              width: '100%',
+              marginBottom: '24px',
+              height: '50px',
+              fontSize: '16px',
+              fontWeight: 600,
+              border: 'none',
+              borderRadius: '8px',
+              cursor: isExecuting ? 'not-allowed' : 'pointer',
+              background: isExecuting ? '#cbd5e1' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: isExecuting ? '#64748b' : 'white',
+              boxShadow: isExecuting ? 'none' : '0 4px 12px rgba(59, 130, 246, 0.4)',
+            }}
           >
             {isExecuting ? '执行中...' : '执行工作流'}
           </Button>

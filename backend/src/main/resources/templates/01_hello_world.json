@@ -1,0 +1,11 @@
+{
+  "name": "Hello World",
+  "description": "最基础的 Python 脚本，输出问候语",
+  "category": "基础",
+  "script": "# Hello World 示例\nmessage = inputs.get('name', 'World')\noutputs['greeting'] = f'Hello, {message}!'\nprint(outputs['greeting'])",
+  "inputs": {
+    "name": "Python"
+  },
+  "requirements": [],
+  "timeout": 10
+}

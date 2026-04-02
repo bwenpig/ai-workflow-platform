@@ -1,0 +1,13 @@
+{
+  "name": "文本处理",
+  "description": "文本分析、正则表达式匹配、字符串操作",
+  "category": "基础",
+  "script": "# 文本处理示例\nimport re\nfrom collections import Counter\n\ntext = inputs.get('text', '')\noperation = inputs.get('operation', 'word_count')\n\ntry:\n    if operation == 'word_count':\n        words = text.split()\n        outputs['word_count'] = len(words)\n        outputs['char_count'] = len(text)\n        outputs['line_count'] = len(text.splitlines())\n    \n    elif operation == 'regex_match':\n        pattern = inputs.get('pattern', r'\\d+')\n        flags = inputs.get('flags', 0)\n        matches = re.findall(pattern, text, flags)\n        outputs['matches'] = matches\n        outputs['count'] = len(matches)\n    \n    elif operation == 'regex_replace':\n        pattern = inputs.get('pattern', r'\\s+')\n        replacement = inputs.get('replacement', ' ')\n        result = re.sub(pattern, replacement, text)\n        outputs['result'] = result\n    \n    elif operation == 'extract_emails':\n        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'\n        emails = re.findall(email_pattern, text)\n        outputs['emails'] = list(set(emails))\n        outputs['count'] = len(outputs['emails'])\n    \n    elif operation == 'extract_urls':\n        url_pattern = r'https?://[^\\s<>\"{}|\\\\^`\\[\\]]+'\n        urls = re.findall(url_pattern, text)\n        outputs['urls'] = list(set(urls))\n        outputs['count'] = len(outputs['urls'])\n    \n    elif operation == 'word_frequency':\n        words = re.findall(r'\\b\\w+\\b', text.lower())\n        word_freq = Counter(words)\n        top_n = inputs.get('top_n', 10)\n        outputs['top_words'] = word_freq.most_common(top_n)\n        outputs['unique_words'] = len(word_freq)\n    \n    elif operation == 'sentiment_keywords':\n        positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic']\n        negative_words = ['bad', 'terrible', 'awful', 'horrible', 'poor', 'disappointing']\n        \n        text_lower = text.lower()\n        pos_count = sum(1 for word in positive_words if word in text_lower)\n        neg_count = sum(1 for word in negative_words if word in text_lower)\n        \n        outputs['positive_count'] = pos_count\n        outputs['negative_count'] = neg_count\n        outputs['sentiment'] = 'positive' if pos_count > neg_count else ('negative' if neg_count > pos_count else 'neutral')\n    \nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "text": "This is a sample text with some words. The text is good and great! Contact us at test@example.com or visit https://example.com",
+    "operation": "word_frequency",
+    "top_n": 5
+  },
+  "requirements": [],
+  "timeout": 10
+}

@@ -1,0 +1,25 @@
+{
+  "name": "数据可视化",
+  "description": "使用 matplotlib 和 seaborn 创建图表",
+  "category": "数据",
+  "script": "# 数据可视化示例\nimport matplotlib\nmatplotlib.use('Agg')  # 非交互式后端\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport pandas as pd\nimport io\nimport base64\n\n# 准备数据\ndata = inputs.get('data', [])\nchart_type = inputs.get('chart_type', 'line')\ntitle = inputs.get('title', 'Chart')\n\ntry:\n    df = pd.DataFrame(data)\n    \n    # 设置图表样式\n    plt.figure(figsize=(10, 6))\n    sns.set_style('whitegrid')\n    \n    if chart_type == 'line':\n        x_col = inputs.get('x', df.columns[0])\n        y_col = inputs.get('y', df.columns[1])\n        plt.plot(df[x_col], df[y_col], marker='o', linewidth=2)\n        plt.xlabel(x_col)\n        plt.ylabel(y_col)\n    \n    elif chart_type == 'bar':\n        x_col = inputs.get('x', df.columns[0])\n        y_col = inputs.get('y', df.columns[1])\n        plt.bar(df[x_col], df[y_col])\n        plt.xlabel(x_col)\n        plt.ylabel(y_col)\n        plt.xticks(rotation=45)\n    \n    elif chart_type == 'scatter':\n        x_col = inputs.get('x', df.columns[0])\n        y_col = inputs.get('y', df.columns[1])\n        plt.scatter(df[x_col], df[y_col], alpha=0.6)\n        plt.xlabel(x_col)\n        plt.ylabel(y_col)\n    \n    elif chart_type == 'hist':\n        col = inputs.get('column', df.columns[0])\n        bins = inputs.get('bins', 20)\n        plt.hist(df[col], bins=bins, edgecolor='black', alpha=0.7)\n        plt.xlabel(col)\n        plt.ylabel('Frequency')\n    \n    plt.title(title)\n    plt.tight_layout()\n    \n    # 保存为 PNG\n    buffer = io.BytesIO()\n    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')\n    plt.close()\n    \n    # 转换为 base64\n    buffer.seek(0)\n    image_base64 = base64.b64encode(buffer.getvalue()).decode()\n    outputs['chart'] = f'data:image/png;base64,{image_base64}'\n    outputs['success'] = True\n    \nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "data": [
+      {"month": "Jan", "sales": 100},
+      {"month": "Feb", "sales": 150},
+      {"month": "Mar", "sales": 200},
+      {"month": "Apr", "sales": 180},
+      {"month": "May", "sales": 250}
+    ],
+    "chart_type": "line",
+    "title": "Monthly Sales",
+    "x": "month",
+    "y": "sales"
+  },
+  "requirements": [
+    "matplotlib",
+    "seaborn",
+    "pandas"
+  ],
+  "timeout": 30
+}

@@ -1,0 +1,12 @@
+{
+  "name": "JSON 解析",
+  "description": "解析和转换 JSON 数据",
+  "category": "基础",
+  "script": "# JSON 解析示例\nimport json\n\n# 获取 JSON 字符串或对象\njson_input = inputs.get('json_data', '{}')\noperation = inputs.get('operation', 'parse')\n\ntry:\n    # 如果是字符串，解析为对象\n    if isinstance(json_input, str):\n        data = json.loads(json_input)\n    else:\n        data = json_input\n    \n    if operation == 'parse':\n        outputs['parsed'] = data\n        outputs['type'] = type(data).__name__\n        if isinstance(data, dict):\n            outputs['keys'] = list(data.keys())\n            outputs['count'] = len(data)\n    \n    elif operation == 'extract':\n        # 提取指定路径的值\n        path = inputs.get('path', '')\n        keys = path.split('.')\n        value = data\n        for key in keys:\n            if isinstance(value, dict):\n                value = value.get(key)\n            else:\n                value = None\n                break\n        outputs['extracted'] = value\n    \n    elif operation == 'transform':\n        # 转换数据结构\n        transform_rules = inputs.get('rules', {})\n        result = {}\n        for new_key, old_key in transform_rules.items():\n            result[new_key] = data.get(old_key)\n        outputs['transformed'] = result\n    \n    elif operation == 'validate':\n        # 验证必需字段\n        required_fields = inputs.get('required', [])\n        missing = [field for field in required_fields if field not in data]\n        outputs['valid'] = len(missing) == 0\n        outputs['missing_fields'] = missing\n    \nexcept json.JSONDecodeError as e:\n    outputs['error'] = f'JSON 解析错误：{str(e)}'\nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "json_data": "{\"name\": \"test\", \"value\": 123, \"nested\": {\"key\": \"value\"}}",
+    "operation": "parse"
+  },
+  "requirements": [],
+  "timeout": 10
+}

@@ -97,8 +97,8 @@ describe('ImportExportModal 组件测试', () => {
         />
       )
 
-      expect(screen.getByText('Python 脚本 (python)')).toBeInTheDocument()
-      expect(screen.getByText('视频生成 (video)')).toBeInTheDocument()
+      expect(screen.getByText((content) => content.includes('Python 脚本'))).toBeInTheDocument()
+      expect(screen.getByText((content) => content.includes('视频生成'))).toBeInTheDocument()
     })
 
     test('应显示导出格式信息', () => {

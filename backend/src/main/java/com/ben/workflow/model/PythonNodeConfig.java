@@ -15,6 +15,7 @@ public class PythonNodeConfig {
     private Map<String, String> env;    // 环境变量
     private Boolean networkEnabled = false; // 是否允许网络访问
     private Long memoryLimit = 128L;    // 内存限制 (MB)
+    private Double cpuLimit = 0.5;      // CPU 限制 (核心数，默认 0.5)
     
     public String getScript() { return script; }
     public void setScript(String script) { this.script = script; }
@@ -39,4 +40,7 @@ public class PythonNodeConfig {
     
     public Long getMemoryLimit() { return memoryLimit; }
     public void setMemoryLimit(Long memoryLimit) { this.memoryLimit = memoryLimit; }
+    
+    public Double getCpuLimit() { return cpuLimit; }
+    public void setCpuLimit(Double cpuLimit) { this.cpuLimit = cpuLimit; }
 }

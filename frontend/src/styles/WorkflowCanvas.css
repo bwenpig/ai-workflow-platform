@@ -1,0 +1,347 @@
+/* ============================================
+   工作流画布样式 - 参考 Dify/n8n 设计
+   ============================================ */
+
+/* ===== 画布容器 ===== */
+.canvas-container {
+  width: 100%;
+  height: 100%;
+  background: #0f172a; /* 深色背景，参考 Dify */
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 20px 20px; /* 网格效果 */
+}
+
+/* ===== 节点工具箱 ===== */
+.node-toolbox {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  min-width: 200px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.node-toolbox h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-toolbox h3::before {
+  content: '🧩';
+  font-size: 16px;
+}
+
+/* ===== 节点按钮样式 ===== */
+.node-toolbox .ant-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: #f8fafc;
+  color: #475569;
+  text-align: left;
+  justify-content: flex-start;
+  height: auto;
+  margin-bottom: 8px;
+}
+
+.node-toolbox .ant-btn:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #2563eb;
+  transform: translateX(4px);
+}
+
+.node-toolbox .ant-btn span:first-child {
+  font-size: 16px;
+}
+
+/* ===== React Flow 节点样式 ===== */
+.react-flow__node {
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  background: #ffffff;
+  min-width: 180px;
+}
+
+.react-flow__node:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.react-flow__node.selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* ===== 节点类型颜色编码 ===== */
+.node-input {
+  border-left: 4px solid #10b981; /* 绿色 - 输入 */
+}
+
+.node-input .node-header {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.node-model {
+  border-left: 4px solid #8b5cf6; /* 紫色 - 模型 */
+}
+
+.node-model .node-header {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+}
+
+.node-llm {
+  border-left: 4px solid #f59e0b; /* 橙色 - LLM */
+}
+
+.node-llm .node-header {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.node-python {
+  border-left: 4px solid #3b82f6; /* 蓝色 - Python */
+}
+
+.node-python .node-header {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.node-process {
+  border-left: 4px solid #ef4444; /* 红色 - 处理 */
+}
+
+.node-process .node-header {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.node-output {
+  border-left: 4px solid #06b6d4; /* 青色 - 输出 */
+}
+
+.node-output .node-header {
+  background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+}
+
+/* ===== 节点内容样式 ===== */
+.node-content {
+  padding: 12px;
+}
+
+.node-header {
+  padding: 10px 12px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.node-header span:first-child {
+  font-size: 16px;
+}
+
+.node-label {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* ===== 节点执行状态 ===== */
+.node-status {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.node-status.running {
+  background: #3b82f6;
+  animation: pulse 1.5s infinite;
+}
+
+.node-status.success {
+  background: #10b981;
+}
+
+.node-status.error {
+  background: #ef4444;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* ===== React Flow 连线样式 ===== */
+.react-flow__edge-path {
+  stroke: #94a3b8;
+  stroke-width: 2px;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #3b82f6;
+  stroke-width: 3px;
+}
+
+.react-flow__edge-path-animated {
+  stroke: #3b82f6;
+  stroke-width: 2px;
+  animation: flow 1s linear infinite;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* ===== 配置面板样式 ===== */
+.config-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  background: #ffffff;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+  overflow-y: auto;
+  border-left: 1px solid #e2e8f0;
+}
+
+.config-panel-header {
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.config-panel-content {
+  padding: 20px;
+}
+
+/* ===== Monaco 编辑器容器 ===== */
+.monaco-editor-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+/* ===== 执行按钮样式 ===== */
+.run-button {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.run-button:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.run-button:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===== Toast 消息样式 ===== */
+.toast-success {
+  background: #10b981;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.toast-error {
+  background: #ef4444;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* ===== 滚动条样式 ===== */
+.config-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.config-panel::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.config-panel::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.config-panel::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ===== 响应式设计 ===== */
+@media (max-width: 768px) {
+  .node-toolbox {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    min-width: auto;
+  }
+  
+  .config-panel {
+    width: 100%;
+  }
+}

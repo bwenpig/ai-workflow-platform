@@ -6,10 +6,10 @@ import com.ben.workflow.model.WorkflowExecution;
 import com.ben.workflow.model.WorkflowNode;
 import com.ben.workflow.model.PythonNodeConfig;
 import com.ben.workflow.engine.PythonExecutionResult;
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
-import com.ben.workflow.spi.ExecutorRegistry;
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
+import com.ben.dagscheduler.registry.ExecutorRegistry;
 import com.ben.workflow.repository.ExecutionRepository;
 import com.ben.workflow.spi.NotificationService;
 import org.springframework.stereotype.Component;
@@ -32,7 +32,7 @@ public class DagWorkflowEngine implements WorkflowEngine {
     @Autowired
     public DagWorkflowEngine(NotificationService notificationService, 
                             ExecutionRepository executionRepository,
-                            ExecutorRegistry executorRegistry) {
+                            @Autowired(required = false) ExecutorRegistry executorRegistry) {
         this.notificationService = notificationService;
         this.executionRepository = executionRepository;
         this.executorRegistry = executorRegistry;
@@ -247,7 +247,12 @@ public class DagWorkflowEngine implements WorkflowEngine {
             nodeType = node.getModelProvider();
         }
         
-        ModelExecutor executor = executorRegistry.getExecutor(nodeType);
+        if (executorRegistry == null) {
+            System.out.println("ExecutorRegistry not configured, returning inputs");
+            return inputs;
+        }
+        
+        NodeExecutor executor = executorRegistry.getExecutor(nodeType);
         if (executor == null) {
             // 尝试使用通用适配器
             executor = executorRegistry.getExecutor("adapter");
@@ -257,20 +262,25 @@ public class DagWorkflowEngine implements WorkflowEngine {
             throw new RuntimeException("未找到模型执行器：type=" + nodeType);
         }
         
-        ModelExecutionContext context = new ModelExecutionContext();
-        context.setInstanceId(instanceId);
-        context.setNodeId(node.getNodeId());
-        context.setNodeType(nodeType);
-        context.setInputs(inputs);
-        context.setConfig(node.getConfig());
+        NodeExecutionContext context = new NodeExecutionContext(
+            node.getNodeId(),
+            node.getNodeId(),
+            nodeType,
+            inputs,
+            0
+        );
         
-        ModelExecutionResult execResult = executor.execute(context);
-        
-        if (!execResult.isSuccess()) {
-            throw new RuntimeException("模型执行失败：" + execResult.getError());
+        try {
+            NodeExecutionResult execResult = executor.execute(context);
+            
+            if (!execResult.isSuccess()) {
+                throw new RuntimeException("模型执行失败：" + execResult.getErrorMessage());
+            }
+            
+            return execResult.getOutputs();
+        } catch (Exception e) {
+            throw new RuntimeException("模型执行异常：" + e.getMessage(), e);
         }
-        
-        return execResult.getData();
     }
 
     /**
@@ -278,26 +288,35 @@ public class DagWorkflowEngine implements WorkflowEngine {
      */
     private Object executeWithSpi(String instanceId, WorkflowNode node, Map<String, Object> inputs) {
         String nodeType = node.getType();
-        ModelExecutor executor = executorRegistry.getExecutor(nodeType);
+        if (executorRegistry == null) {
+            System.out.println("ExecutorRegistry not configured for SPI");
+            return inputs;
+        }
+        NodeExecutor executor = executorRegistry.getExecutor(nodeType);
         if (executor == null) {
             System.out.println("未找到 SPI 执行器：type=" + nodeType);
             return inputs;
         }
         
-        ModelExecutionContext context = new ModelExecutionContext();
-        context.setInstanceId(instanceId);
-        context.setNodeId(node.getNodeId());
-        context.setNodeType(nodeType);
-        context.setInputs(inputs);
-        context.setConfig(node.getConfig());
+        NodeExecutionContext context = new NodeExecutionContext(
+            node.getNodeId(),
+            node.getNodeId(),
+            nodeType,
+            inputs,
+            0
+        );
         
-        ModelExecutionResult execResult = executor.execute(context);
-        
-        if (!execResult.isSuccess()) {
-            throw new RuntimeException("执行器执行失败：" + execResult.getError());
+        try {
+            NodeExecutionResult execResult = executor.execute(context);
+            
+            if (!execResult.isSuccess()) {
+                throw new RuntimeException("执行器执行失败：" + execResult.getErrorMessage());
+            }
+            
+            return execResult.getOutputs();
+        } catch (Exception e) {
+            throw new RuntimeException("执行器执行异常：" + e.getMessage(), e);
         }
-        
-        return execResult.getData();
     }
 
     private Object processInput(Map<String, Object> inputs) {

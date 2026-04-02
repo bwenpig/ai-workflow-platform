@@ -1,14 +1,15 @@
 package com.ben.workflow.engine;
 
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.model.PythonNodeConfig;
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.*;
 import java.nio.file.*;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -16,7 +17,7 @@ import java.util.concurrent.*;
  * Python 脚本执行器
  */
 @NodeComponent(value = "python_script", name = "Python 脚本", description = "执行 Python 脚本节点")
-public class PythonScriptExecutor implements ModelExecutor {
+public class PythonScriptExecutor implements NodeExecutor {
     
     private static final String PYTHON_EXECUTABLE = "python3";
     private static final int DEFAULT_TIMEOUT = 30;
@@ -28,34 +29,49 @@ public class PythonScriptExecutor implements ModelExecutor {
     }
     
     @Override
-    public ModelExecutionResult execute(ModelExecutionContext context) {
-        Map<String, Object> config = context.getConfig();
-        String script = config != null ? (String) config.get("script") : "";
-        Integer timeout = config != null ? (Integer) config.get("timeout") : null;
-        List<String> requirements = config != null ? (List<String>) config.get("requirements") : null;
-        Map<String, Object> env = config != null ? (Map<String, Object>) config.get("env") : null;
-        
-        PythonNodeConfig nodeConfig = new PythonNodeConfig();
-        nodeConfig.setScript(script);
-        nodeConfig.setTimeout(timeout);
-        nodeConfig.setRequirements(requirements);
-        if (env != null) {
-            Map<String, String> envMap = new HashMap<>();
-            for (Map.Entry<String, Object> entry : env.entrySet()) {
-                envMap.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : "");
+    public String getName() {
+        return "Python 脚本";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "执行 Python 脚本节点";
+    }
+    
+    @Override
+    public NodeExecutionResult execute(NodeExecutionContext context) throws Exception {
+        LocalDateTime startTime = LocalDateTime.now();
+        try {
+            Map<String, Object> config = context != null ? context.getInputs() : null;
+            String script = config != null ? (String) config.get("script") : "";
+            Integer timeout = config != null ? (Integer) config.get("timeout") : null;
+            List<String> requirements = config != null ? (List<String>) config.get("requirements") : null;
+            Map<String, Object> env = config != null ? (Map<String, Object>) config.get("env") : null;
+            
+            PythonNodeConfig nodeConfig = new PythonNodeConfig();
+            nodeConfig.setScript(script);
+            nodeConfig.setTimeout(timeout);
+            nodeConfig.setRequirements(requirements);
+            if (env != null) {
+                Map<String, String> envMap = new HashMap<>();
+                for (Map.Entry<String, Object> entry : env.entrySet()) {
+                    envMap.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : "");
+                }
+                nodeConfig.setEnv(envMap);
             }
-            nodeConfig.setEnv(envMap);
+            
+            PythonExecutionResult result = execute(script, context != null ? context.getInputs() : new HashMap<>(), nodeConfig);
+            
+            LocalDateTime endTime = LocalDateTime.now();
+            if (!result.isSuccess()) {
+                return NodeExecutionResult.failed(context != null ? context.getNodeId() : "unknown", result.getError(), null, startTime, endTime);
+            }
+            
+            return NodeExecutionResult.success(context != null ? context.getNodeId() : "unknown", result.getOutputs(), startTime, endTime);
+        } catch (Exception e) {
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(context != null ? context.getNodeId() : "unknown", e, startTime, endTime);
         }
-        
-        PythonExecutionResult result = execute(script, context.getInputs(), nodeConfig);
-        
-        if (!result.isSuccess()) {
-            return ModelExecutionResult.failure(result.getError());
-        }
-        
-        ModelExecutionResult execResult = ModelExecutionResult.success(result.getOutputs());
-        execResult.setLogs(result.getLogs());
-        return execResult;
     }
     
     public PythonExecutionResult execute(String script, Map<String, Object> inputs, PythonNodeConfig config) {

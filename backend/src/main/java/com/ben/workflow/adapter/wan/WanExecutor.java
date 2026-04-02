@@ -1,11 +1,12 @@
 package com.ben.workflow.adapter.wan;
 
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,7 +15,7 @@ import java.util.Map;
  */
 @NodeComponent(value = "wan", name = "Wan AI", description = "Wan 文生图模型")
 @Component
-public class WanExecutor implements ModelExecutor {
+public class WanExecutor implements NodeExecutor {
 
     @Override
     public String getType() {
@@ -22,9 +23,20 @@ public class WanExecutor implements ModelExecutor {
     }
 
     @Override
-    public ModelExecutionResult execute(ModelExecutionContext context) {
+    public String getName() {
+        return "Wan AI";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Wan 文生图模型";
+    }
+
+    @Override
+    public NodeExecutionResult execute(NodeExecutionContext context) throws Exception {
         try {
-            Map<String, Object> config = context.getConfig();
+            LocalDateTime startTime = LocalDateTime.now();
+            Map<String, Object> config = context != null ? context.getInputs() : null;
             String prompt = config != null ? (String) config.get("prompt") : "";
             
             Map<String, Object> result = new HashMap<>();
@@ -36,9 +48,11 @@ public class WanExecutor implements ModelExecutor {
             result.put("height", 1024);
             result.put("steps", 30);
             
-            return ModelExecutionResult.success(result);
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.success(context != null ? context.getNodeId() : "unknown", result, startTime, endTime);
         } catch (Exception e) {
-            return ModelExecutionResult.failure("Wan 执行失败：" + e.getMessage());
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(context != null ? context.getNodeId() : "unknown", e, LocalDateTime.now(), endTime);
         }
     }
 }

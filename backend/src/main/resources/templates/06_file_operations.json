@@ -1,0 +1,13 @@
+{
+  "name": "文件操作",
+  "description": "读取和写入文件（在沙箱允许的临时目录内）",
+  "category": "基础",
+  "script": "# 文件操作示例\nimport os\nimport json\n\n# 沙箱环境只允许在 /sandbox 或 /tmp 目录操作文件\nwork_dir = '/sandbox'\noperation = inputs.get('operation', 'write')\n\ntry:\n    if operation == 'write':\n        filename = inputs.get('filename', 'output.txt')\n        content = inputs.get('content', '')\n        filepath = os.path.join(work_dir, filename)\n        \n        with open(filepath, 'w', encoding='utf-8') as f:\n            f.write(content)\n        \n        outputs['filepath'] = filepath\n        outputs['bytes_written'] = len(content.encode('utf-8'))\n        outputs['success'] = True\n    \n    elif operation == 'read':\n        filename = inputs.get('filename', 'output.txt')\n        filepath = os.path.join(work_dir, filename)\n        \n        if os.path.exists(filepath):\n            with open(filepath, 'r', encoding='utf-8') as f:\n                content = f.read()\n            outputs['content'] = content\n            outputs['bytes_read'] = len(content.encode('utf-8'))\n        else:\n            outputs['error'] = f'文件不存在：{filepath}'\n    \n    elif operation == 'list':\n        files = os.listdir(work_dir)\n        outputs['files'] = files\n        outputs['count'] = len(files)\n    \n    elif operation == 'json_write':\n        filename = inputs.get('filename', 'data.json')\n        data = inputs.get('data', {})\n        filepath = os.path.join(work_dir, filename)\n        \n        with open(filepath, 'w', encoding='utf-8') as f:\n            json.dump(data, f, ensure_ascii=False, indent=2)\n        \n        outputs['filepath'] = filepath\n        outputs['success'] = True\n    \n    elif operation == 'json_read':\n        filename = inputs.get('filename', 'data.json')\n        filepath = os.path.join(work_dir, filename)\n        \n        if os.path.exists(filepath):\n            with open(filepath, 'r', encoding='utf-8') as f:\n                data = json.load(f)\n            outputs['data'] = data\n        else:\n            outputs['error'] = f'文件不存在：{filepath}'\n    \nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "operation": "write",
+    "filename": "test.txt",
+    "content": "Hello from file operation!"
+  },
+  "requirements": [],
+  "timeout": 10
+}

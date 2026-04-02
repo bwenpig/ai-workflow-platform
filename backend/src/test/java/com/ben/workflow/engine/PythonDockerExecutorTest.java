@@ -310,4 +310,56 @@ public class PythonDockerExecutorTest {
         assertEquals("test-key-123", result.getOutputs().get("api_key"));
         assertTrue((Boolean) result.getOutputs().get("debug"));
     }
+    
+    @Test
+    @DisplayName("CPU 限制配置")
+    public void testCpuLimitConfig() {
+        String script = """
+            outputs['test'] = 'cpu limit test'
+            """;
+        
+        Map<String, Object> inputs = new HashMap<>();
+        
+        PythonNodeConfig config = new PythonNodeConfig();
+        config.setScript(script);
+        config.setCpuLimit(1.0);  // 1 CPU 核心
+        
+        PythonExecutionResult result = executor.execute(script, inputs, config);
+        
+        assertTrue(result.isSuccess());
+    }
+    
+    @Test
+    @DisplayName("内存和 CPU 组合限制")
+    public void testCombinedResourceLimits() {
+        String script = """
+            import os
+            outputs['memory_limit_mb'] = 128
+            outputs['cpu_limit'] = 0.5
+            outputs['test'] = 'resource limits applied'
+            """;
+        
+        Map<String, Object> inputs = new HashMap<>();
+        
+        PythonNodeConfig config = new PythonNodeConfig();
+        config.setScript(script);
+        config.setMemoryLimit(256L);  // 256MB
+        config.setCpuLimit(0.75);     // 0.75 CPU
+        
+        PythonExecutionResult result = executor.execute(script, inputs, config);
+        
+        assertTrue(result.isSuccess());
+        assertEquals(256L, config.getMemoryLimit());
+        assertEquals(0.75, config.getCpuLimit());
+    }
+    
+    @Test
+    @DisplayName("默认资源限制值")
+    public void testDefaultResourceLimits() {
+        PythonNodeConfig config = new PythonNodeConfig();
+        
+        // 验证默认值
+        assertEquals(128L, config.getMemoryLimit(), "默认内存限制应为 128MB");
+        assertEquals(0.5, config.getCpuLimit(), "默认 CPU 限制应为 0.5 核心");
+    }
 }

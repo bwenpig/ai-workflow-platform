@@ -1,12 +1,23 @@
 package com.ben.workflow.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-/**
- * 空配置类 - 用于标记配置包存在
- * WebFlux 由 Spring Boot 自动配置
- */
 @Configuration
-public class WebSocketConfig {
-    // 无需额外配置
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
+    
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(realtimeHandler(), "/api/v1/ws/realtime")
+            .setAllowedOrigins("*");
+    }
+    
+    @Bean
+    public RealtimeHandler realtimeHandler() {
+        return new RealtimeHandler();
+    }
 }

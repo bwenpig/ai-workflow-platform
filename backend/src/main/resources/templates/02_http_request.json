@@ -1,0 +1,17 @@
+{
+  "name": "HTTP 请求",
+  "description": "使用 requests 库发送 HTTP GET 请求",
+  "category": "网络",
+  "script": "# HTTP 请求示例\nimport requests\n\nurl = inputs.get('url', 'https://httpbin.org/get')\nparams = inputs.get('params', {})\n\ntry:\n    response = requests.get(url, params=params, timeout=10)\n    outputs['status_code'] = response.status_code\n    outputs['content'] = response.text[:500]  # 限制长度\n    outputs['headers'] = dict(response.headers)\nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "url": "https://httpbin.org/get",
+    "params": {
+      "key": "value"
+    }
+  },
+  "requirements": [
+    "requests"
+  ],
+  "timeout": 15,
+  "networkEnabled": true
+}

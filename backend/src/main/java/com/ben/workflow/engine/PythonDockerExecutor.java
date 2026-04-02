@@ -4,6 +4,7 @@ import com.ben.dagscheduler.spi.NodeExecutor;
 import com.ben.dagscheduler.spi.NodeExecutionContext;
 import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.model.PythonNodeConfig;
+import com.ben.workflow.security.*;
 import com.ben.workflow.spi.NodeComponent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
@@ -15,7 +16,7 @@ import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.okhttp.OkDockerHttpClient;
 import com.github.dockerjava.transport.DockerHttpClient;
 
 import java.io.IOException;
@@ -53,7 +54,22 @@ public class PythonDockerExecutor implements NodeExecutor {
     private final String dockerImage;
     
     /**
-     * 默认构造函数，使用本地 Docker 守护进程
+     * 安全配置（严格模式）
+     */
+    private final PythonSecurityConfig securityConfig;
+    
+    /**
+     * 安全分析器
+     */
+    private final PythonSecurityAnalyzer securityAnalyzer;
+    
+    /**
+     * 运行时拦截器
+     */
+    private final RuntimeInterceptor runtimeInterceptor;
+    
+    /**
+     * 默认构造函数，使用本地 Docker 守护进程和严格安全配置
      */
     public PythonDockerExecutor() {
         this(DEFAULT_IMAGE);
@@ -67,18 +83,23 @@ public class PythonDockerExecutor implements NodeExecutor {
     public PythonDockerExecutor(String dockerImage) {
         this.dockerImage = dockerImage;
         
-        // 初始化 Docker 客户端 - 支持 DOCKER_HOST 环境变量和自动检测 socket 路径
-        var dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                .withDockerHost(resolveDockerHost())
-                .build();
-        var dockerHttpClient = new ApacheDockerHttpClient.Builder()
+        // 初始化安全组件
+        this.securityConfig = PythonSecurityConfig.createStrict();
+        this.securityAnalyzer = new PythonSecurityAnalyzer(securityConfig);
+        this.runtimeInterceptor = new RuntimeInterceptor(securityConfig);
+        
+        // 使用 docker-java 的默认配置（自动检测 Docker 环境）
+        var dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+        
+        // 使用 OkHttp 传输（更好的 Unix socket 支持）
+        var dockerHttpClient = new OkDockerHttpClient.Builder()
                 .dockerHost(dockerClientConfig.getDockerHost())
-                .sslConfig(dockerClientConfig.getSSLConfig())
                 .build();
         
         this.dockerClient = DockerClientImpl.getInstance(dockerClientConfig, dockerHttpClient);
         
         System.out.println("[PythonDockerExecutor] 初始化完成，镜像：" + dockerImage + ", Docker Host: " + dockerClientConfig.getDockerHost());
+        System.out.println("[PythonDockerExecutor] 安全模块已启用：AST 分析 + 运行时拦截");
     }
     
     /**
@@ -186,6 +207,25 @@ public class PythonDockerExecutor implements NodeExecutor {
         
         System.out.println("[PythonDockerExecutor] 开始执行 Python 脚本，inputs=" + inputs.keySet());
         
+        // ===== 安全层 1: 执行前 AST 分析 =====
+        System.out.println("[PythonDockerExecutor] 执行安全分析...");
+        SecurityAnalysisResult analysisResult = securityAnalyzer.analyze(script);
+        if (!analysisResult.isSafe()) {
+            System.err.println("[PythonDockerExecutor] 安全检查失败：" + analysisResult.getViolations());
+            return PythonExecutionResult.failure("安全校验失败：" + String.join(", ", analysisResult.getViolations()));
+        }
+        System.out.println("[PythonDockerExecutor] 安全检查通过，发现 " + analysisResult.getImports().size() + " 个导入");
+        
+        // ===== 安全层 2: 运行时拦截包装 =====
+        String safeScript;
+        try {
+            safeScript = runtimeInterceptor.wrapUserCode(script);
+            System.out.println("[PythonDockerExecutor] 运行时拦截层已注入");
+        } catch (SecurityViolationException e) {
+            System.err.println("[PythonDockerExecutor] 安全包装失败：" + e.getMessage());
+            return PythonExecutionResult.failure("安全包装失败：" + e.getMessage());
+        }
+        
         String containerId = null;
         Path tempDir = null;
         
@@ -198,9 +238,9 @@ public class PythonDockerExecutor implements NodeExecutor {
             Path inputsFile = tempDir.resolve("inputs.json");
             Files.writeString(inputsFile, inputsJson);
             
-            // 3. 包装用户脚本
+            // 3. 包装用户脚本（使用安全包装后的代码）
             Path scriptFile = tempDir.resolve("script.py");
-            Files.writeString(scriptFile, wrapScript(script));
+            Files.writeString(scriptFile, wrapScript(safeScript));
             
             // 4. 准备 requirements.txt（如果有）
             if (config != null && config.getRequirements() != null && !config.getRequirements().isEmpty()) {
@@ -298,11 +338,13 @@ public class PythonDockerExecutor implements NodeExecutor {
     private String createContainer(Path workDir, PythonNodeConfig config) throws IOException {
         int timeout = config != null && config.getTimeout() != null ? config.getTimeout() : DEFAULT_TIMEOUT_SECONDS;
         long memoryMb = config != null && config.getMemoryLimit() != null ? config.getMemoryLimit() : DEFAULT_MEMORY_MB;
+        double cpuCores = config != null && config.getCpuLimit() != null ? config.getCpuLimit() : DEFAULT_CPU_QUOTA;
         
         // 构建主机配置
         HostConfig hostConfig = new HostConfig()
-                .withMemory(memoryMb * 1024 * 1024)  // 内存限制
-                .withCpuQuota((long) (DEFAULT_CPU_QUOTA * 100000))  // CPU 限制
+                .withMemory(memoryMb * 1024 * 1024)  // 内存限制 (字节)
+                .withMemorySwap(memoryMb * 1024 * 1024)  // 禁止使用 swap
+                .withCpuQuota((long) (cpuCores * 100000))  // CPU 限制 (微秒/100ms)
                 .withNetworkMode("none")  // 禁用网络
                 .withReadonlyRootfs(true)  // 只读文件系统
                 .withTmpFs(Map.of("/tmp", "rw,noexec,nosuid,size=64m"));  // 临时目录

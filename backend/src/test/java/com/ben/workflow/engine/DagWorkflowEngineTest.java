@@ -1,15 +1,16 @@
 package com.ben.workflow.engine;
 
 import com.ben.workflow.model.*;
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
-import com.ben.workflow.spi.ExecutorRegistry;
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
+import com.ben.dagscheduler.registry.ExecutorRegistry;
 import com.ben.workflow.spi.NotificationService;
 import com.ben.workflow.repository.ExecutionRepository;
 import org.junit.jupiter.api.*;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -47,43 +48,50 @@ public class DagWorkflowEngineTest {
         }
     }
 
-    static class StubModelExecutor implements ModelExecutor {
-        ModelExecutionResult result;
+    static class StubNodeExecutor implements NodeExecutor {
+        NodeExecutionResult result;
         boolean shouldThrow = false;
         String type = "stub";
         
         @Override public String getType() { return type; }
         
-        @Override public ModelExecutionResult execute(ModelExecutionContext context) {
+        @Override public NodeExecutionResult execute(NodeExecutionContext context) throws Exception {
             if (shouldThrow) throw new RuntimeException("Execution failed");
-            return result != null ? result : createSuccessResult(Map.<String, Object>of("output", "mock"));
+            LocalDateTime now = LocalDateTime.now();
+            return result != null ? result : NodeExecutionResult.success(
+                context != null ? context.getNodeId() : "unknown",
+                Map.of("output", "mock"),
+                now,
+                now
+            );
         }
         
-        ModelExecutionResult createSuccessResult(Object data) {
-            ModelExecutionResult r = new ModelExecutionResult();
-            r.setSuccess(true);
-            r.setData((Map<String, Object>)data);
-            return r;
+        NodeExecutionResult createSuccessResult(Map<String, Object> data) {
+            LocalDateTime now = LocalDateTime.now();
+            return NodeExecutionResult.success("test-node", data, now, now);
         }
     }
 
     // ===== 测试字段 =====
     private StubNotificationService notificationService;
-    private StubModelExecutor modelExecutor;
+    private StubNodeExecutor nodeExecutor;
     private ExecutorRegistry executorRegistry;
     private DagWorkflowEngine engine;
 
     @BeforeEach
     public void setUp() throws Exception {
         notificationService = new StubNotificationService();
-        modelExecutor = new StubModelExecutor();
+        nodeExecutor = new StubNodeExecutor();
         executorRegistry = new ExecutorRegistry();
+        
+        // 注册 nodeExecutor
+        executorRegistry.register(nodeExecutor, "stub");
         // 绕过 Spring，直接手动注册
         try {
             java.lang.reflect.Field field = ExecutorRegistry.class.getDeclaredField("executors");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
-            Map<String, ModelExecutor> executors = (Map<String, ModelExecutor>) field.get(executorRegistry);
+            Map<String, NodeExecutor> executors = (Map<String, NodeExecutor>) field.get(executorRegistry);
             executors.clear();
         } catch (Exception e) {
             // ignore
@@ -246,9 +254,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - MODEL 类型")
     public void testExecuteNode_Model() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("model_output", "result"));
-        modelExecutor.type = "kling";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("model_output", "result"));
+        nodeExecutor.type = "kling";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "MODEL");
         node.setModelProvider("kling");
@@ -260,9 +268,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - kling 类型")
     public void testExecuteNode_Kling() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("video_url", "http://test.com"));
-        modelExecutor.type = "kling";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("video_url", "http://test.com"));
+        nodeExecutor.type = "kling";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "kling");
         node.setConfig(Map.of("prompt", "video"));
@@ -273,9 +281,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - wan 类型")
     public void testExecuteNode_Wan() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("video", "wan_result"));
-        modelExecutor.type = "wan";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("video", "wan_result"));
+        nodeExecutor.type = "wan";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "wan");
         Object result = engine.executeNodeForTest("i", node, new HashMap<>());
@@ -284,9 +292,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - seedance 类型")
     public void testExecuteNode_Seedance() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("dance", "seedance_result"));
-        modelExecutor.type = "seedance";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("dance", "seedance_result"));
+        nodeExecutor.type = "seedance";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "seedance");
         Object result = engine.executeNodeForTest("i", node, new HashMap<>());
@@ -295,9 +303,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - nanobanana 类型")
     public void testExecuteNode_Nanobanana() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("image", "nanobanana_result"));
-        modelExecutor.type = "nanobanana";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("image", "nanobanana_result"));
+        nodeExecutor.type = "nanobanana";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "nanobanana");
         Object result = engine.executeNodeForTest("i", node, new HashMap<>());
@@ -306,9 +314,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - python_script 类型")
     public void testExecuteNode_PythonScript() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("script_output", "python_result"));
-        modelExecutor.type = "python_script";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("script_output", "python_result"));
+        nodeExecutor.type = "python_script";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "python_script");
         node.setConfig(Map.of("script", "print('hello')"));
@@ -318,9 +326,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - PYTHON_SCRIPT 类型 (大写)")
     public void testExecuteNode_PythonScriptUppercase() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("output", "PYTHON_RESULT"));
-        modelExecutor.type = "PYTHON_SCRIPT";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("output", "PYTHON_RESULT"));
+        nodeExecutor.type = "PYTHON_SCRIPT";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "PYTHON_SCRIPT");
         Object result = engine.executeNodeForTest("i", node, new HashMap<>());
@@ -329,9 +337,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - 未知类型使用 SPI")
     public void testExecuteNode_UnknownTypeWithSpi() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("spi", "result"));
-        modelExecutor.type = "custom_type";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("spi", "result"));
+        nodeExecutor.type = "custom_type";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "custom_type");
         Object result = engine.executeNodeForTest("i", node, Map.of("input", "data"));
@@ -357,11 +365,10 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - 模型执行失败")
     public void testExecuteNode_ModelExecutionFailed() {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("error", "fail"));
-        modelExecutor.result.setSuccess(false);
-        modelExecutor.result.setError("Model error");
-        modelExecutor.type = "kling";
-        executorRegistry.register(modelExecutor);
+        LocalDateTime now = LocalDateTime.now();
+        nodeExecutor.result = NodeExecutionResult.failed("test-node", "Model error", null, now, now);
+        nodeExecutor.type = "kling";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = n("n1", "MODEL");
         node.setModelProvider("kling");
@@ -469,9 +476,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("完整工作流执行 - 混合工作流 (MODEL+PROCESS)")
     public void testExecuteWorkflow_Mixed() throws Exception {
-        modelExecutor.result = modelExecutor.createSuccessResult(Map.of("output", "model_result"));
-        modelExecutor.type = "kling";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.result = nodeExecutor.createSuccessResult(Map.of("output", "model_result"));
+        nodeExecutor.type = "kling";
+        executorRegistry.register(nodeExecutor);
 
         Workflow wf = createWorkflow(
             List.of(
@@ -504,9 +511,9 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("错误处理 - 节点执行失败")
     public void testError_NodeExecutionFailed() {
-        modelExecutor.shouldThrow = true;
-        modelExecutor.type = "kling";
-        executorRegistry.register(modelExecutor);
+        nodeExecutor.shouldThrow = true;
+        nodeExecutor.type = "kling";
+        executorRegistry.register(nodeExecutor);
 
         WorkflowNode node = createNode("n1", "MODEL", new HashMap<>());
         node.setModelProvider("kling");

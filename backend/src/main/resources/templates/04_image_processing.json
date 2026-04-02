@@ -1,0 +1,16 @@
+{
+  "name": "图像处理",
+  "description": "使用 PIL/Pillow 处理图像（调整大小、转换格式等）",
+  "category": "图像",
+  "script": "# 图像处理示例\nfrom PIL import Image\nimport io\nimport base64\n\n# 获取图像数据（base64 或路径）\nimage_data = inputs.get('image_data', '')\noperation = inputs.get('operation', 'resize')\n\ntry:\n    if image_data.startswith('data:'):\n        # 移除 data URL 前缀\n        image_data = image_data.split(',')[1]\n    \n    # 解码图像\n    image_bytes = base64.b64decode(image_data)\n    img = Image.open(io.BytesIO(image_bytes))\n    \n    outputs['original_size'] = img.size\n    outputs['format'] = img.format\n    outputs['mode'] = img.mode\n    \n    if operation == 'resize':\n        new_width = inputs.get('width', 800)\n        new_height = inputs.get('height', 600)\n        img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)\n        outputs['new_size'] = img_resized.size\n        \n        # 保存为 PNG\n        buffer = io.BytesIO()\n        img_resized.save(buffer, format='PNG')\n        outputs['processed_image'] = 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode()\n    \n    elif operation == 'grayscale':\n        img_gray = img.convert('L')\n        buffer = io.BytesIO()\n        img_gray.save(buffer, format='PNG')\n        outputs['grayscale_image'] = 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode()\n    \n    elif operation == 'rotate':\n        angle = inputs.get('angle', 90)\n        img_rotated = img.rotate(angle, expand=True)\n        outputs['rotated_size'] = img_rotated.size\n        \n        buffer = io.BytesIO()\n        img_rotated.save(buffer, format='PNG')\n        outputs['rotated_image'] = 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode()\n    \nexcept Exception as e:\n    outputs['error'] = str(e)",
+  "inputs": {
+    "image_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "operation": "resize",
+    "width": 100,
+    "height": 100
+  },
+  "requirements": [
+    "Pillow"
+  ],
+  "timeout": 30
+}

@@ -1,10 +1,11 @@
 package com.ben.workflow.adapter.nanobanana;
 
-import com.ben.workflow.spi.ModelExecutor;
-import com.ben.workflow.spi.ModelExecutionContext;
-import com.ben.workflow.spi.ModelExecutionResult;
+import com.ben.dagscheduler.spi.NodeExecutor;
+import com.ben.dagscheduler.spi.NodeExecutionContext;
+import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,15 +13,22 @@ import java.util.Map;
  * NanoBanana 图像生成模型执行器
  */
 @NodeComponent(value = "nanobanana", name = "NanoBanana", description = "NanoBanana 文生图模型")
-public class NanoBananaExecutor implements ModelExecutor {
+public class NanoBananaExecutor implements NodeExecutor {
 
     @Override
     public String getType() { return "nanobanana"; }
 
     @Override
-    public ModelExecutionResult execute(ModelExecutionContext context) {
+    public String getName() { return "NanoBanana"; }
+
+    @Override
+    public String getDescription() { return "NanoBanana 文生图模型"; }
+
+    @Override
+    public NodeExecutionResult execute(NodeExecutionContext context) throws Exception {
         try {
-            Map<String, Object> config = context != null ? context.getConfig() : null;
+            LocalDateTime startTime = LocalDateTime.now();
+            Map<String, Object> config = context != null ? context.getInputs() : null;
             if (config == null) config = new HashMap<>();
             String prompt = (String) config.getOrDefault("prompt", "");
             Integer width = (Integer) config.getOrDefault("width", 1024);
@@ -34,9 +42,11 @@ public class NanoBananaExecutor implements ModelExecutor {
             result.put("width", width);
             result.put("height", height);
             
-            return ModelExecutionResult.success(result);
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.success(context != null ? context.getNodeId() : "unknown", result, startTime, endTime);
         } catch (Exception e) {
-            return ModelExecutionResult.failure("NanoBanana 执行失败：" + e.getMessage());
+            LocalDateTime endTime = LocalDateTime.now();
+            return NodeExecutionResult.failed(context != null ? context.getNodeId() : "unknown", e, LocalDateTime.now(), endTime);
         }
     }
 }
