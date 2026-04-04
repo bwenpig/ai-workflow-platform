@@ -108,7 +108,10 @@ function App() {
         {/* 工作流画布 */}
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {view === 'canvas' ? (
-            <WorkflowCanvas />
+            <WorkflowCanvas onExecutionStart={(execId) => {
+              setCurrentExecutionId(execId);
+              setShowLog(true);
+            }} />
           ) : (
             <div style={{ padding: '20px', color: 'white' }}>
               <h2>工作流列表</h2>

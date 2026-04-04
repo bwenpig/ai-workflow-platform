@@ -10,7 +10,6 @@ import {
   Connection,
   Edge,
   Node,
-  NodeClickHandler,
   Handle,
   Position,
 } from '@xyflow/react';
@@ -27,10 +26,15 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import ResultPreview from './ResultPreview';
 import PythonConfigPanel from './PythonConfigPanel';
 import { PythonNode } from '../nodes/PythonNode';
+import { HttpRequestNode } from '../nodes/HttpRequestNode';
+import { ConditionalNode } from '../nodes/ConditionalNode';
+import { LoopNode } from '../nodes/LoopNode';
+import { LLMNode } from '../nodes/LLMNode';
 
 const { TextArea } = Input;
 const { Option, OptGroup } = Select;
@@ -120,8 +124,12 @@ function SimpleNode({ data, id }: any) {
 }
 
 const nodeTypes = {
+  http_request: HttpRequestNode,
+  conditional: ConditionalNode,
+  loop: LoopNode,
   simple: SimpleNode,
   python_script: PythonNode,
+  llm: LLMNode,
 };
 
 const initialNodes: Node[] = [
@@ -135,7 +143,11 @@ const initialEdges: Edge[] = [
   { id: 'e2-3', source: '2', target: '3' },
 ];
 
-export default function WorkflowCanvas() {
+interface WorkflowCanvasProps {
+  onExecutionStart?: (executionId: string) => void;
+}
+
+export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   
@@ -146,6 +158,64 @@ export default function WorkflowCanvas() {
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
   const [nodeResults, setNodeResults] = useState<Record<string, any>>({});
+  const [workflowList, setWorkflowList] = useState<any[]>([]);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string>('');
+
+  // 加载工作流列表
+  const loadWorkflowList = async () => {
+    try {
+      const res = await fetch('http://localhost:8080/api/v1/workflows');
+      const data = await res.json();
+      setWorkflowList(data);
+    } catch (e) {
+      console.error('加载工作流列表失败', e);
+    }
+  };
+
+  // 加载工作流详情
+  const loadWorkflow = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/v1/workflows/${id}`);
+      const workflow = await res.json();
+      
+      if (workflow.nodes && workflow.nodes.length > 0) {
+        const loadedNodes = workflow.nodes.map((n: any) => ({
+          id: n.nodeId,
+          type: n.type === 'http_request' ? 'http_request' : 
+                n.type === 'conditional' ? 'conditional' : 
+                n.type === 'loop' ? 'loop' : 
+                n.type === 'PYTHON_SCRIPT' ? 'python_script' : 'simple',
+          position: n.position || { x: 100, y: 100 },
+          data: { 
+            label: n.config?.label || n.nodeId, 
+            icon: n.type === 'http_request' ? '🌐' : 
+                  n.type === 'conditional' ? '🔀' : 
+                  n.type === 'loop' ? '🔄' : 
+                  n.type === 'PYTHON_SCRIPT' ? '🐍' : '📝',
+            config: n.config || {}
+          },
+        }));
+        
+        const loadedEdges = (workflow.edges || []).map((e: any, i: number) => ({
+          id: e.id || `e${i}`,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle,
+          targetHandle: e.targetHandle,
+        }));
+        
+        setNodes(loadedNodes);
+        setEdges(loadedEdges);
+        setCurrentWorkflowId(id);
+      }
+    } catch (e) {
+      console.error('加载工作流失败', e);
+    }
+  };
+
+  useEffect(() => {
+    loadWorkflowList();
+  }, []);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollCountRef = useRef(0);
@@ -155,17 +225,47 @@ export default function WorkflowCanvas() {
     [setEdges]
   );
 
+  // 节点类型映射
+  const getNodeType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      python: 'python_script',
+      http_request: 'http_request',
+      conditional: 'conditional',
+      loop: 'loop',
+      input: 'simple',
+      output: 'simple',
+      model: 'simple',
+      llm: 'llm',
+      process: 'simple',
+    };
+    return typeMap[type] || 'simple';
+  };
+
+  // 获取默认节点数据
+  const getDefaultNodeData = (type: string, label: string, icon: string) => {
+    const baseData = { label, icon, type, config: {} };
+    
+    const defaultConfigs: Record<string, any> = {
+      http_request: { url: 'https://api.example.com', method: 'GET', timeout: 5000, headers: {} },
+      conditional: { expression: '', value: '' },
+      loop: { items: [], itemVar: 'item', indexVar: 'index', concurrency: 1, maxIterations: 100 },
+      llm: { model: 'qwen-plus', systemPrompt: '你是一个有用的 AI 助手', userPrompt: '', temperature: 0.7, maxTokens: 2048 },
+    };
+    
+    return { ...baseData, ...defaultConfigs[type] };
+  };
+
   const addNode = (type: string, label: string, icon: string = label.split(' ')[0]) => {
     const newNode: Node = {
       id: `node-${Date.now()}`,
-      type: type === 'python' ? 'python_script' : 'simple',
+      type: getNodeType(type),
       position: { x: Math.random() * 400 + 50, y: Math.random() * 400 + 50 },
-      data: { label, icon, type, config: {} },  // 添加 type 到 data 中
+      data: getDefaultNodeData(type, label, icon),
     };
     setNodes((nds) => [...nds, newNode]);
   };
 
-  const onNodeClick: NodeClickHandler = useCallback((event, node) => {
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
 
@@ -263,6 +363,11 @@ export default function WorkflowCanvas() {
       });
       const executeResult = await executeResponse.json();
       setExecutionId(executeResult.executionId);
+      
+      // 通知父组件执行已开始
+      if (onExecutionStart && executeResult.executionId) {
+        onExecutionStart(executeResult.executionId);
+      }
 
       pollIntervalRef.current = setInterval(() => {
         pollExecutionStatus(executeResult.executionId);
@@ -307,6 +412,41 @@ export default function WorkflowCanvas() {
       <div style={{ width: '100vw', height: '100vh', display: 'flex', background: '#f0f2f5' }}>
         {/* 左侧画布区域 */}
         <div style={{ flex: 1, position: 'relative' }}>
+          {/* 工作流选择器 */}
+          <Card
+            size="small"
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: '240px',
+              zIndex: 1000,
+              width: '280px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Select
+                style={{ flex: 1 }}
+                placeholder="选择工作流"
+                value={selectedWorkflow || undefined}
+                onChange={(val) => {
+                  setSelectedWorkflow(val);
+                  if (val) loadWorkflow(val);
+                }}
+                options={workflowList.map((w) => ({ label: w.name, value: w.id }))}
+                allowClear
+                onClear={() => {
+                  setSelectedWorkflow('');
+                  setCurrentWorkflowId(null);
+                }}
+              />
+              <Button 
+                icon={<ReloadOutlined />} 
+                onClick={loadWorkflowList}
+                title="刷新列表"
+              />
+            </div>
+          </Card>
+
           {/* 顶部工具栏 - 参考 Dify/n8n 设计 */}
           <Card
             size="small"
@@ -324,23 +464,33 @@ export default function WorkflowCanvas() {
               节点工具箱
             </div>
             <Space direction="vertical" style={{ width: '100%' }} size="small">
-              <Button icon={<span>📝</span>} onClick={() => addNode('input', '输入节点')} block>
+              <Button icon={<span>📝</span>} draggable onDragStart={(e) => onDragStart(e, 'input')} onClick={() => addNode('input', '输入节点')} block>
                 输入节点
               </Button>
-              <Button icon={<span>🎨</span>} onClick={() => addNode('model', '模型节点')} block>
+              <Button icon={<span>🎨</span>} draggable onDragStart={(e) => onDragStart(e, 'model')} onClick={() => addNode('model', '模型节点')} block>
                 模型节点
               </Button>
-              <Button icon={<RobotOutlined />} onClick={() => addNode('llm', 'LLM 节点')} block>
+              <Button icon={<RobotOutlined />} draggable onDragStart={(e) => onDragStart(e, 'llm')} onClick={() => addNode('llm', 'LLM 节点')} block>
                 LLM 节点
               </Button>
-              <Button icon={<span>🐍</span>} onClick={() => addNode('python', 'Python 脚本', '🐍')} block>
+              <Button icon={<span>🐍</span>} draggable onDragStart={(e) => onDragStart(e, 'python')} onClick={() => addNode('python', 'Python 脚本', '🐍')} block>
                 Python 脚本
               </Button>
-              <Button icon={<ThunderboltOutlined />} onClick={() => addNode('process', '处理节点')} block>
+              <Button icon={<ThunderboltOutlined />} draggable onDragStart={(e) => onDragStart(e, 'process')} onClick={() => addNode('process', '处理节点')} block>
                 处理节点
               </Button>
-              <Button icon={<ExportOutlined />} onClick={() => addNode('output', '输出节点')} block>
+              <Button icon={<ExportOutlined />} draggable onDragStart={(e) => onDragStart(e, 'output')} onClick={() => addNode('output', '输出节点')} block>
                 输出节点
+              </Button>
+              <Divider style={{ margin: '8px 0' }} />
+              <Button icon={<span>🌐</span>} draggable onDragStart={(e) => onDragStart(e, 'http_request')} onClick={() => addNode('http_request', 'HTTP 请求')} block>
+                HTTP 请求
+              </Button>
+              <Button icon={<span>🔀</span>} draggable onDragStart={(e) => onDragStart(e, 'conditional')} onClick={() => addNode('conditional', '条件判断')} block>
+                条件判断
+              </Button>
+              <Button icon={<span>🔄</span>} draggable onDragStart={(e) => onDragStart(e, 'loop')} onClick={() => addNode('loop', '循环处理')} block>
+                循环处理
               </Button>
             </Space>
           </Card>
@@ -354,6 +504,23 @@ export default function WorkflowCanvas() {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               onNodeClick={onNodeClick}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const type = event.dataTransfer.getData('application/reactflow');
+                if (!type) return;
+                const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+                const position = {
+                  x: event.clientX - reactFlowBounds.left - 100,
+                  y: event.clientY - reactFlowBounds.top - 25,
+                };
+                const labelMap: Record<string, string> = {
+                  input: '输入节点', model: '模型节点', llm: 'LLM 节点',
+                  python: 'Python 脚本', process: '处理节点', output: '输出节点',
+                  http_request: 'HTTP 请求', conditional: '条件判断', loop: '循环处理'
+                };
+                addNode(type, labelMap[type] || type);
+              }}
               fitView
               nodeTypes={nodeTypes}
               style={{ background: 'transparent' }}
@@ -361,13 +528,13 @@ export default function WorkflowCanvas() {
             >
               <Controls />
               <MiniMap
-                nodeStrokeColor={(n) => '#1890ff'}
-                nodeColor={(n) => {
-                  if (n.data?.status === 'SUCCESS') return '#f6ffed';
-                  if (n.data?.status === 'FAILED') return '#fff2f0';
-                  if (n.data?.status === 'RUNNING') return '#fffbe6';
-                  return '#fff';
+                nodeColor={(node) => {
+                  if (node.data?.status === 'SUCCESS') return '#52c41a';
+                  if (node.data?.status === 'FAILED') return '#ff4d4f';
+                  if (node.data?.status === 'RUNNING') return '#faad14';
+                  return '#999';
                 }}
+                style={{ width: 120, height: 80 }}
               />
               <Background variant="dots" gap={12} size={1} />
             </ReactFlow>
@@ -426,6 +593,176 @@ export default function WorkflowCanvas() {
                     message.success('Python 脚本配置已保存');
                   }}
                 />
+              ) : selectedNode.type === 'http_request' ? (
+                <Card
+                  title={<><SettingOutlined /> 🌐 HTTP 请求 - 配置</>}
+                  size="small"
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>URL 地址</div>
+                      <Input
+                        value={selectedNode.data.config?.url || ''}
+                        onChange={(e) => handleConfigChange('url', e.target.value)}
+                        placeholder="https://api.example.com"
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>请求方法</div>
+                      <Select
+                        value={selectedNode.data.config?.method || 'GET'}
+                        onChange={(v) => handleConfigChange('method', v)}
+                        options={[{label:'GET',value:'GET'},{label:'POST',value:'POST'},{label:'PUT',value:'PUT'},{label:'DELETE',value:'DELETE'}]}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <Button type="primary" onClick={() => message.success('配置已保存')}>保存配置</Button>
+                  </Space>
+                </Card>
+              ) : selectedNode.type === 'conditional' ? (
+                <Card
+                  title={<><SettingOutlined /> 🔀 条件判断 - 配置</>}
+                  size="small"
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>条件表达式</div>
+                      <Input
+                        value={selectedNode.data.config?.expression || ''}
+                        onChange={(e) => handleConfigChange('expression', e.target.value)}
+                        placeholder="status_code == 200"
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>比较值</div>
+                      <Input
+                        value={selectedNode.data.config?.value || ''}
+                        onChange={(e) => handleConfigChange('value', e.target.value)}
+                        placeholder="200"
+                      />
+                    </div>
+                    <Button type="primary" onClick={() => message.success('配置已保存')}>保存配置</Button>
+                  </Space>
+                </Card>
+              ) : selectedNode.type === 'loop' ? (
+                <Card
+                  title={<><SettingOutlined /> 🔄 循环处理 - 配置</>}
+                  size="small"
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>循环项 (JSON 数组)</div>
+                      <TextArea
+                        value={JSON.stringify(selectedNode.data.config?.items || [], null, 2)}
+                        onChange={(e) => {
+                          try {
+                            const parsed = JSON.parse(e.target.value);
+                            handleConfigChange('items', parsed);
+                          } catch {}
+                        }}
+                        placeholder='["a", "b", "c"]'
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>循环变量名</div>
+                      <Input
+                        value={selectedNode.data.config?.itemVar || 'item'}
+                        onChange={(e) => handleConfigChange('itemVar', e.target.value)}
+                        placeholder="item"
+                      />
+                    </div>
+                    <Button type="primary" onClick={() => message.success('配置已保存')}>保存配置</Button>
+                  </Space>
+                </Card>
+              ) : selectedNode.type === 'llm' ? (
+                <Card
+                  title={<><SettingOutlined /> <RobotOutlined /> LLM 节点 - 配置</>}
+                  size="small"
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>🤖 模型选择</div>
+                      <Select
+                        value={selectedNode.data.config?.model || 'qwen-plus'}
+                        onChange={(v) => handleConfigChange('model', v)}
+                        style={{ width: '100%' }}
+                      >
+                        <OptGroup label="⭐ Qwen 系列（推荐）">
+                          <Option value="qwen-plus">Qwen-Plus</Option>
+                          <Option value="qwen-max">Qwen-Max</Option>
+                          <Option value="qwen-turbo">Qwen-Turbo</Option>
+                          <Option value="qwen-long">Qwen-Long</Option>
+                        </OptGroup>
+                        <OptGroup label="🚀 MiniMax">
+                          <Option value="minimax-m2">MiniMax-M2</Option>
+                          <Option value="minimax-m1">MiniMax-M1</Option>
+                        </OptGroup>
+                        <OptGroup label="🌙 Kimi">
+                          <Option value="kimi-latest">Kimi</Option>
+                          <Option value="kimi-plus">Kimi Plus</Option>
+                        </OptGroup>
+                        <OptGroup label="🌍 OpenAI">
+                          <Option value="gpt-4">GPT-4</Option>
+                          <Option value="gpt-4-turbo">GPT-4 Turbo</Option>
+                          <Option value="gpt-3.5-turbo">GPT-3.5 Turbo</Option>
+                        </OptGroup>
+                        <OptGroup label="🤖 Anthropic">
+                          <Option value="claude-3-opus">Claude 3 Opus</Option>
+                          <Option value="claude-3-sonnet">Claude 3 Sonnet</Option>
+                          <Option value="claude-3-haiku">Claude 3 Haiku</Option>
+                        </OptGroup>
+                      </Select>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>📋 系统提示词</div>
+                      <TextArea
+                        value={selectedNode.data.config?.systemPrompt || '你是一个有用的 AI 助手'}
+                        onChange={(e) => handleConfigChange('systemPrompt', e.target.value)}
+                        placeholder="设置 AI 的角色和行为"
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>💬 用户提示词</div>
+                      <TextArea
+                        value={selectedNode.data.config?.userPrompt || ''}
+                        onChange={(e) => handleConfigChange('userPrompt', e.target.value)}
+                        placeholder="输入用户提示词，支持变量如 {{input}}"
+                        rows={3}
+                      />
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                        提示: 使用 {"{{变量名}}"} 引用上游节点输出
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>🌡️ 温度 (Temperature)</div>
+                      <Input
+                        type="number"
+                        value={selectedNode.data.config?.temperature ?? 0.7}
+                        onChange={(e) => handleConfigChange('temperature', parseFloat(e.target.value) || 0.7)}
+                        min={0}
+                        max={2}
+                        step={0.1}
+                      />
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: 4 }}>
+                        控制输出随机性: 0=确定性, 2=高随机性
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>📏 最大 Tokens</div>
+                      <Input
+                        type="number"
+                        value={selectedNode.data.config?.maxTokens ?? 2048}
+                        onChange={(e) => handleConfigChange('maxTokens', parseInt(e.target.value) || 2048)}
+                        min={256}
+                        max={32768}
+                        step={256}
+                      />
+                    </div>
+                    <Button type="primary" onClick={() => message.success('配置已保存')}>保存配置</Button>
+                  </Space>
+                </Card>
               ) : (
               <Card
                 title={<><SettingOutlined /> {selectedNode.data.icon} {selectedNode.data.label} - 配置</>}
@@ -605,6 +942,14 @@ export default function WorkflowCanvas() {
                                 🔗 查看大图
                               </Button>
                             )}
+                          </div>
+                        )}
+                        {/* 通用 JSON 结果展示 */}
+                        {(!nodeResults[selectedNode.id].result.type || (nodeResults[selectedNode.id].result.type !== 'video' && nodeResults[selectedNode.id].result.type !== 'image')) && (
+                          <div style={{ background: '#f5f5f5', borderRadius: '8px', padding: '12px', maxHeight: '300px', overflow: 'auto' }}>
+                            <pre style={{ margin: 0, fontSize: '12px', color: '#333' }}>
+                              {JSON.stringify(nodeResults[selectedNode.id].result, null, 2)}
+                            </pre>
                           </div>
                         )}
                       </div>

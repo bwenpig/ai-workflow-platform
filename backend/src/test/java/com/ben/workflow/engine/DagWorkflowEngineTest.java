@@ -136,14 +136,14 @@ public class DagWorkflowEngineTest {
                 return null;
             }
         );
-        engine = new DagWorkflowEngine(notificationService, repoProxy, executorRegistry);
+        engine = new DagWorkflowEngine(notificationService, repoProxy, null, executorRegistry);
     }
 
     // ==================== 拓扑排序测试 ====================
 
     @Test @DisplayName("拓扑排序 - 线性")
     public void testTopologicalSort_Linear() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1"), n("n2"), n("n3")), List.of(e("n1","n2"), e("n2","n3")));
         List<String> r = bareEngine.topologicalSortForTest(wf);
         assertEquals(3, r.size());
@@ -152,14 +152,14 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("拓扑排序 - 循环依赖")
     public void testTopologicalSort_Circular() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1"), n("n2"), n("n3")), List.of(e("n1","n2"), e("n2","n3"), e("n3","n1")));
         assertThrows(IllegalStateException.class, () -> bareEngine.topologicalSortForTest(wf));
     }
 
     @Test @DisplayName("拓扑排序 - 并行")
     public void testTopologicalSort_Parallel() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1"), n("n2"), n("n3")), List.of(e("n1","n3"), e("n2","n3")));
         List<String> r = bareEngine.topologicalSortForTest(wf);
         assertTrue(r.indexOf("n1") < r.indexOf("n3") && r.indexOf("n2") < r.indexOf("n3"));
@@ -167,7 +167,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("拓扑排序 - 空工作流")
     public void testTopologicalSort_Empty() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = new Workflow();
         wf.setNodes(new ArrayList<>());
         wf.setEdges(new ArrayList<>());
@@ -176,14 +176,14 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("拓扑排序 - 单节点")
     public void testTopologicalSort_Single() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1")), new ArrayList<>());
         assertEquals(List.of("n1"), bareEngine.topologicalSortForTest(wf));
     }
 
     @Test @DisplayName("拓扑排序 - 复杂 DAG")
     public void testTopologicalSort_ComplexDag() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(
             List.of(n("n1"), n("n2"), n("n3"), n("n4")),
             List.of(e("n1","n2"), e("n1","n3"), e("n2","n4"), e("n3","n4"))
@@ -200,7 +200,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("输入收集 - 线性")
     public void testCollectInputs_Linear() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1"), n("n2"), n("n3")), List.of(e("n1","n2"), e("n2","n3")));
         Map<String,Object> out = Map.of("n1", Map.of("v", 1), "n2", Map.of("v", 2));
         Map<String, Object> inputs = bareEngine.collectNodeInputsForTest(wf, findNode(wf, "n3"), out);
@@ -210,7 +210,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("输入收集 - 并行")
     public void testCollectInputs_Parallel() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1"), n("n2"), n("n3")), List.of(e("n1","n3"), e("n2","n3")));
         Map<String,Object> out = Map.of("n1", Map.of("out", 1), "n2", Map.of("out", 2));
         Map<String,Object> inputs = bareEngine.collectNodeInputsForTest(wf, findNode(wf, "n3"), out);
@@ -220,7 +220,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("输入收集 - 无输入")
     public void testCollectInputs_NoInputs() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1")), new ArrayList<>());
         Map<String,Object> inputs = bareEngine.collectNodeInputsForTest(wf, findNode(wf, "n1"), new HashMap<>());
         assertTrue(inputs.isEmpty());
@@ -230,7 +230,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - INPUT 类型")
     public void testExecuteNode_Input() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         WorkflowNode node = n("n1", "INPUT");
         node.setConfig(Map.of("value", "test"));
         assertEquals("test", bareEngine.executeNodeForTest("i", node, new HashMap<>()));
@@ -239,7 +239,7 @@ public class DagWorkflowEngineTest {
     @Test @DisplayName("节点执行 - INPUT 类型无配置")
     public void testExecuteNode_InputNoConfig() {
         ExecutorRegistry emptyRegistry = new ExecutorRegistry();
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, emptyRegistry);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, emptyRegistry);
         WorkflowNode node = n("n1", "INPUT");
         node.setConfig(new HashMap<>());
         assertEquals("fallback", bareEngine.executeNodeForTest("i", node, Map.of("default", "fallback")));
@@ -247,7 +247,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("节点执行 - PROCESS 类型")
     public void testExecuteNode_Process() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Map<String,Object> in = Map.of("k", "v");
         assertEquals(in, bareEngine.executeNodeForTest("i", n("n1", "PROCESS"), in));
     }
@@ -349,7 +349,7 @@ public class DagWorkflowEngineTest {
     @Test @DisplayName("节点执行 - 未知类型无 SPI")
     public void testExecuteNode_UnknownTypeNoSpi() {
         ExecutorRegistry emptyRegistry = new ExecutorRegistry();
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, emptyRegistry);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, emptyRegistry);
         WorkflowNode node = n("n1", "unknown");
         Object result = bareEngine.executeNodeForTest("i", node, Map.of("input", "data"));
         assertEquals(Map.of("input", "data"), result);
@@ -379,7 +379,7 @@ public class DagWorkflowEngineTest {
     @Test @DisplayName("节点执行 - 节点类型为空字符串")
     public void testExecuteNode_EmptyType() {
         ExecutorRegistry emptyRegistry = new ExecutorRegistry();
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, emptyRegistry);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, emptyRegistry);
         WorkflowNode node = new WorkflowNode();
         node.setNodeId("n1");
         node.setType("");
@@ -393,14 +393,14 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("查找节点 - 存在")
     public void testFindNode_Exists() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1"), n("n2")), List.of(e("n1","n2")));
         assertNotNull(bareEngine.findNodeForTest(wf, "n1"));
     }
 
     @Test @DisplayName("查找节点 - 不存在")
     public void testFindNode_NotExists() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         Workflow wf = createWorkflow(List.of(n("n1")), new ArrayList<>());
         assertNull(bareEngine.findNodeForTest(wf, "x"));
     }
@@ -409,14 +409,14 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("状态管理 - 创建")
     public void testState_Create() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         bareEngine.createExecutionStateForTest("i");
         assertNotNull(bareEngine.getState("i").block());
     }
 
     @Test @DisplayName("状态管理 - 取消")
     public void testState_Cancel() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         bareEngine.createExecutionStateForTest("i");
         bareEngine.cancel("i").block();
         assertEquals(ExecutionState.Status.CANCELLED, bareEngine.getState("i").block().getStatus());
@@ -424,7 +424,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("状态管理 - 不存在")
     public void testState_NotFound() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         assertNull(bareEngine.getState("x").block());
     }
 
@@ -501,7 +501,7 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("错误处理 - 循环依赖检测")
     public void testError_CircularDependency() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, new ExecutorRegistry());
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, new ExecutorRegistry());
         Workflow wf = createWorkflow(
             List.of(n("n1"), n("n2"), n("n3")),
             List.of(e("n1","n2"), e("n2","n3"), e("n3","n1"))
@@ -543,13 +543,13 @@ public class DagWorkflowEngineTest {
 
     @Test @DisplayName("边界条件 - getState 不存在")
     public void testEdgeCase_GetStateNotFound() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         assertNull(bareEngine.getState("non-existent").block());
     }
 
     @Test @DisplayName("边界条件 - cancel 不存在的实例")
     public void testEdgeCase_CancelNotFound() {
-        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null);
+        DagWorkflowEngine bareEngine = new DagWorkflowEngine(null, null, null, null);
         assertDoesNotThrow(() -> bareEngine.cancel("non-existent").block());
     }
 

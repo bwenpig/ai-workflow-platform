@@ -147,8 +147,13 @@ inputs_file = sys.argv[1] if len(sys.argv) > 1 else 'inputs.json'
 try:
     with open(inputs_file, 'r', encoding='utf-8') as f:
         inputs = json.load(f)
-except:
+except Exception as e:
     inputs = {}
+    print(f"ERROR loading inputs: {e}", file=sys.stderr)
+
+# DEBUG: 打印加载的 inputs
+print(f"DEBUG PYTHON: inputs keys = {list(inputs.keys())}", file=sys.stderr)
+print(f"DEBUG PYTHON: inputs = {inputs}", file=sys.stderr)
 
 # 执行用户脚本
 outputs = {}
@@ -211,16 +216,50 @@ sys.exit(0)
             sb.append("\"").append(entry.getKey()).append("\":");
             Object value = entry.getValue();
             if (value instanceof String) {
-                sb.append("\"").append(value).append("\"");
+                sb.append("\"").append(escapeJson((String) value)).append("\"");
             } else if (value instanceof Map) {
                 sb.append(mapToJson((Map<?, ?>) value));
-            } else {
+            } else if (value instanceof List) {
+                sb.append(listToJson((List<?>) value));
+            } else if (value instanceof Number || value instanceof Boolean) {
                 sb.append(value);
+            } else if (value == null) {
+                sb.append("null");
+            } else {
+                sb.append("\"").append(escapeJson(value.toString())).append("\"");
             }
             first = false;
         }
         sb.append("}");
         return sb.toString();
+    }
+    
+    private String listToJson(List<?> list) {
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Object item : list) {
+            if (!first) sb.append(",");
+            if (item instanceof String) {
+                sb.append("\"").append(escapeJson((String) item)).append("\"");
+            } else if (item instanceof Map) {
+                sb.append(mapToJson((Map<?, ?>) item));
+            } else if (item instanceof List) {
+                sb.append(listToJson((List<?>) item));
+            } else if (item instanceof Number || item instanceof Boolean) {
+                sb.append(item);
+            } else if (item == null) {
+                sb.append("null");
+            } else {
+                sb.append("\"").append(escapeJson(item.toString())).append("\"");
+            }
+            first = false;
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+    
+    private String escapeJson(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
     
     @SuppressWarnings("unchecked")

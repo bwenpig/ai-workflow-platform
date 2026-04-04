@@ -20,6 +20,16 @@ public interface WorkflowEngine {
     Mono<String> execute(Workflow workflow, Map<String, Object> inputs);
 
     /**
+     * 执行工作流（带已有执行ID）
+     * 
+     * @param workflow 工作流定义
+     * @param inputs 输入参数
+     * @param existingExecutionId 已有的执行ID（可选）
+     * @return 执行实例 ID
+     */
+    Mono<String> execute(Workflow workflow, Map<String, Object> inputs, String existingExecutionId);
+
+    /**
      * 查询执行状态
      */
     Mono<ExecutionState> getState(String instanceId);

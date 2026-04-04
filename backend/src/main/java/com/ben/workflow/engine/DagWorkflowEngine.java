@@ -12,6 +12,7 @@ import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.dagscheduler.registry.ExecutorRegistry;
 import com.ben.workflow.repository.ExecutionRepository;
 import com.ben.workflow.spi.NotificationService;
+import com.ben.workflow.service.ExecutionLogService;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Mono;
@@ -20,6 +21,7 @@ import reactor.core.scheduler.Schedulers;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 
 @Component
 public class DagWorkflowEngine implements WorkflowEngine {
@@ -27,43 +29,63 @@ public class DagWorkflowEngine implements WorkflowEngine {
     private final NotificationService notificationService;
     protected ExecutionRepository executionRepository;  // protected 用于测试
     private final ExecutorRegistry executorRegistry;
+    private final ExecutionLogService logService;
     private final Map<String, ExecutionState> executionStates = new ConcurrentHashMap<>();
     
     @Autowired
     public DagWorkflowEngine(NotificationService notificationService, 
                             ExecutionRepository executionRepository,
+                            ExecutionLogService logService,
                             @Autowired(required = false) ExecutorRegistry executorRegistry) {
         this.notificationService = notificationService;
         this.executionRepository = executionRepository;
+        this.logService = logService;
         this.executorRegistry = executorRegistry;
     }
     
     // 测试用构造函数
     DagWorkflowEngine(NotificationService notificationService,
                      Object executionRepository,
+                     ExecutionLogService logService,
                      ExecutorRegistry executorRegistry) {
         this.notificationService = notificationService;
         if (executionRepository instanceof ExecutionRepository) {
             this.executionRepository = (ExecutionRepository) executionRepository;
         }
+        this.logService = logService;
         this.executorRegistry = executorRegistry;
     }
 
     @Override
     public Mono<String> execute(Workflow workflow, Map<String, Object> inputs) {
+        return execute(workflow, inputs, null);
+    }
+    
+    public Mono<String> execute(Workflow workflow, Map<String, Object> inputs, String existingExecutionId) {
         return Mono.fromCallable(() -> {
-            String instanceId = UUID.randomUUID().toString();
+            // 如果没有提供 executionId，则生成新的
+            String instanceId = existingExecutionId != null ? existingExecutionId : UUID.randomUUID().toString();
             System.out.println("开始执行工作流：workflowId=" + workflow.getId() + ", instanceId=" + instanceId);
 
-            // 创建执行记录
-            WorkflowExecution execution = new WorkflowExecution();
-            execution.setId(instanceId);
-            execution.setWorkflowId(workflow.getId());
-            execution.setStatus("RUNNING");
-            execution.setInputs(inputs);
-            execution.setCreatedAt(Instant.now());
-            execution.setStartedAt(Instant.now());
-            executionRepository.save(execution);
+            // 检查执行记录是否已存在（如果是从 WorkflowService 预先创建的）
+            WorkflowExecution execution = executionRepository.findById(instanceId).orElse(null);
+            if (execution == null) {
+                // 创建执行记录
+                execution = new WorkflowExecution();
+                execution.setId(instanceId);
+                execution.setWorkflowId(workflow.getId());
+                execution.setStatus("RUNNING");
+                execution.setInputs(inputs);
+                execution.setCreatedAt(Instant.now());
+                execution.setStartedAt(Instant.now());
+                executionRepository.save(execution);
+            } else {
+                // 更新已存在的记录
+                execution.setStatus("RUNNING");
+                execution.setStartedAt(Instant.now());
+                execution.setInputs(inputs);
+                executionRepository.save(execution);
+            }
 
             ExecutionState initialState = ExecutionState.builder()
                     .instanceId(instanceId)
@@ -82,8 +104,10 @@ public class DagWorkflowEngine implements WorkflowEngine {
 
     private void executeAsync(String instanceId, Workflow workflow, Map<String, Object> inputs) {
         try {
+            logService.addLog(instanceId, null, "info", "工作流开始执行: " + workflow.getName());
+            
             List<String> executionOrder = topologicalSort(workflow);
-            System.out.println("DAG 拓扑排序完成：order=" + executionOrder);
+            logService.addLog(instanceId, null, "info", "DAG拓扑排序完成，共 " + executionOrder.size() + " 个节点");
 
             Map<String, Object> nodeOutputs = new HashMap<>();
             Map<String, WorkflowExecution.NodeExecutionState> nodeStates = new HashMap<>();
@@ -93,6 +117,7 @@ public class DagWorkflowEngine implements WorkflowEngine {
                 if (node == null) continue;
 
                 Map<String, Object> nodeInputs = collectNodeInputs(workflow, node, nodeOutputs);
+                logService.addLog(instanceId, nodeId, "info", "节点 [" + nodeId + "] 开始执行");
                 notificationService.notifyNodeStart(instanceId, nodeId);
                 
                 // 创建节点状态
@@ -113,14 +138,17 @@ public class DagWorkflowEngine implements WorkflowEngine {
                 nodeStates.put(nodeId, nodeState);
                 updateExecutionStatus(instanceId, "RUNNING", nodeStates);
                 
+                logService.addLog(instanceId, nodeId, "success", "节点 [" + nodeId + "] 执行成功");
                 notificationService.notifyNodeComplete(instanceId, nodeId, Map.of("output", result));
             }
 
             // 执行完成
+            logService.addLog(instanceId, null, "success", "工作流执行完成!");
             updateExecutionStatus(instanceId, "SUCCESS", nodeStates);
             System.out.println("工作流执行完成：instanceId=" + instanceId);
 
         } catch (Exception e) {
+            logService.addLog(instanceId, null, "error", "工作流执行失败: " + e.getMessage());
             System.err.println("工作流执行失败：instanceId=" + instanceId + ", error=" + e.getMessage());
             e.printStackTrace();
             updateExecutionStatus(instanceId, "FAILED", new HashMap<>());
@@ -130,18 +158,37 @@ public class DagWorkflowEngine implements WorkflowEngine {
     private void updateExecutionStatus(String instanceId, String status, Map<String, WorkflowExecution.NodeExecutionState> nodeStates) {
         try {
             WorkflowExecution execution = executionRepository.findById(instanceId).orElse(null);
-            if (execution != null) {
-                execution.setStatus(status);
-                execution.setNodeStates(nodeStates);
-                if ("SUCCESS".equals(status) || "FAILED".equals(status)) {
-                    execution.setEndedAt(Instant.now());
+            if (execution == null) {
+                System.out.println("警告：未找到执行记录 instanceId=" + instanceId);
+                return;
+            }
+            
+            execution.setStatus(status);
+            
+            // 过滤掉 null key
+            if (nodeStates != null) {
+                Map<String, WorkflowExecution.NodeExecutionState> filteredStates = new HashMap<>();
+                for (Map.Entry<String, WorkflowExecution.NodeExecutionState> entry : nodeStates.entrySet()) {
+                    if (entry.getKey() != null) {
+                        filteredStates.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                execution.setNodeStates(filteredStates);
+            }
+            
+            if ("SUCCESS".equals(status) || "FAILED".equals(status)) {
+                execution.setEndedAt(Instant.now());
+                if (execution.getStartedAt() != null) {
                     long duration = execution.getEndedAt().toEpochMilli() - execution.getStartedAt().toEpochMilli();
                     execution.setDurationMs(duration);
                 }
-                executionRepository.save(execution);
             }
+            
+            executionRepository.save(execution);
+            System.out.println("更新执行状态：instanceId=" + instanceId + ", status=" + status);
         } catch (Exception e) {
             System.err.println("更新执行状态失败：" + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -150,12 +197,53 @@ public class DagWorkflowEngine implements WorkflowEngine {
         for (WorkflowEdge edge : workflow.getEdges()) {
             if (edge.getTarget().equals(node.getNodeId())) {
                 Object sourceOutput = outputs.get(edge.getSource());
-                if (sourceOutput != null) {
-                    inputs.put(edge.getTargetHandle(), sourceOutput);
+                // System.out.println("收集输入：edge=" + edge.getSource() + "->" + edge.getTarget() + ", sourceOutput=" + (sourceOutput != null ? sourceOutput.getClass() : "null"));
+                if (sourceOutput != null && sourceOutput instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> sourceMap = (Map<String, Object>) sourceOutput;
+                    
+                    // 提取源节点输出的所有键值对，直接合并到 inputs
+                    inputs.putAll(sourceMap);
+                    System.out.println("[变量替换] inputs keys: " + inputs.keySet() + ", node=" + node.getNodeId());
                 }
             }
         }
+        
+        // ===== 变量替换：将 {{nodeId.field}} 替换为实际值 =====
+        if (node.getConfig() != null) {
+            System.out.println("[变量替换] node=" + node.getNodeId() + ", config=" + node.getConfig());
+            for (Map.Entry<String, Object> entry : node.getConfig().entrySet()) {
+                Object replacedValue = replaceVariables(entry.getValue(), inputs);
+                System.out.println("[变量替换] key=" + entry.getKey() + ", original=" + entry.getValue() + ", replaced=" + replacedValue);
+                inputs.put(entry.getKey(), replacedValue);
+            }
+        }
+        
         return inputs;
+    }
+    
+    // 简单的变量替换：{{field}} -> variables.get(field)
+    private Object replaceVariables(Object value, Map<String, Object> variables) {
+        if (value == null) return null;
+        if (!(value instanceof String)) return value;
+        
+        String str = (String) value;
+        // 检查是否包含变量
+        if (!str.contains("{{") || !str.contains("}}")) {
+            return str;
+        }
+        
+        String result = str;
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            if (entry.getValue() != null) {
+                String placeholder = "{{" + entry.getKey() + "}}";
+                if (result.contains(placeholder)) {
+                    System.out.println("[变量替换] 替换 " + placeholder + " -> " + entry.getValue());
+                    result = result.replace(placeholder, entry.getValue().toString());
+                }
+            }
+        }
+        return result;
     }
 
     private List<String> topologicalSort(Workflow workflow) {
@@ -298,6 +386,8 @@ public class DagWorkflowEngine implements WorkflowEngine {
             return inputs;
         }
         
+        // 直接使用 inputs（已经包含变量替换后的值）
+        // 不再重复合并 node.getConfig()，避免覆盖已替换的变量
         NodeExecutionContext context = new NodeExecutionContext(
             node.getNodeId(),
             node.getNodeId(),
@@ -405,6 +495,27 @@ public class DagWorkflowEngine implements WorkflowEngine {
      * 执行 Python 脚本节点（使用 SPI）
      */
     private Object executePythonScript(String instanceId, WorkflowNode node, Map<String, Object> inputs) {
-        return executeWithSpi(instanceId, node, inputs);
+        System.out.println("DEBUG executePythonScript: nodeId=" + node.getNodeId() + ", inputs keys=" + (inputs != null ? inputs.keySet() : "null"));
+        try {
+            Map<String, Object> config = node.getConfig();
+            String script = config != null ? (String) config.get("script") : "";
+            Integer timeout = config != null ? (Integer) config.get("timeout") : 30;
+            
+            PythonNodeConfig nodeConfig = new PythonNodeConfig();
+            nodeConfig.setScript(script);
+            nodeConfig.setTimeout(timeout);
+            
+            // 使用 PythonScriptExecutor 执行脚本
+            PythonScriptExecutor executor = new PythonScriptExecutor();
+            PythonExecutionResult result = executor.execute(script, inputs, nodeConfig);
+            
+            if (!result.isSuccess()) {
+                throw new RuntimeException("Python 脚本执行失败: " + result.getError());
+            }
+            
+            return result.getOutputs();
+        } catch (Exception e) {
+            throw new RuntimeException("Python 脚本执行异常: " + e.getMessage(), e);
+        }
     }
 }

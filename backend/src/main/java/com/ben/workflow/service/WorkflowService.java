@@ -104,8 +104,10 @@ public class WorkflowService {
             Workflow workflow = workflowRepository.findById(workflowId)
                     .orElseThrow(() -> new RuntimeException("工作流不存在：" + workflowId));
             
+            // 创建 PENDING 状态的执行记录
+            String executionId = UUID.randomUUID().toString();
             WorkflowExecution execution = new WorkflowExecution();
-            execution.setId(UUID.randomUUID().toString());
+            execution.setId(executionId);
             execution.setWorkflowId(workflowId);
             execution.setStatus("PENDING");
             execution.setInputs(inputs);
@@ -114,7 +116,8 @@ public class WorkflowService {
             
             execution = executionRepository.save(execution);
             
-            workflowEngine.execute(workflow, inputs).subscribe(instanceId -> {
+            // 传递已有的 executionId 给 engine
+            workflowEngine.execute(workflow, inputs, executionId).subscribe(instanceId -> {
                 System.out.println("工作流执行已启动：instanceId=" + instanceId);
             });
             

@@ -2,6 +2,16 @@
    工作流画布样式 - 参考 Dify/n8n 设计
    ============================================ */
 
+/* ===== 节点运行动画 ===== */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.node-running {
+  animation: spin 1s linear infinite;
+}
+
 /* ===== 画布容器 ===== */
 .canvas-container {
   width: 100%;
