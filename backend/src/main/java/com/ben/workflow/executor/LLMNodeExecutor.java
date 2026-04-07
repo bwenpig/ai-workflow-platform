@@ -4,6 +4,7 @@ import com.ben.dagscheduler.spi.NodeExecutor;
 import com.ben.dagscheduler.spi.NodeExecutionContext;
 import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
+import com.ben.workflow.util.ConfigUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -51,7 +52,6 @@ public class LLMNodeExecutor implements NodeExecutor {
     // 腾讯云 Hunyuan LLM 配置
     private static final String DEFAULT_MODEL = "hunyuan-2.0-instruct";
     private static final String DEFAULT_BASE_URL = "https://api.lkeap.cloud.tencent.com/coding/v3";
-    private static final String DEFAULT_API_KEY = "sk-sp-T2HXWTFShiAXWJF8OAd2YRk7aswW3BTyMLI0CBpDYOItYPHL";
     private static final double DEFAULT_TEMPERATURE = 0.7;
     private static final int DEFAULT_MAX_TOKENS = 2048;
     private static final int DEFAULT_TIMEOUT_SECONDS = 120;
@@ -88,15 +88,15 @@ public class LLMNodeExecutor implements NodeExecutor {
             Map<String, Object> inputs = context != null ? context.getInputs() : Collections.emptyMap();
             if (inputs == null) inputs = Collections.emptyMap();
 
-            // ---- 解析配置 ----
-            String model = getStr(inputs, "model", DEFAULT_MODEL);
-            String systemPrompt = getStr(inputs, "systemPrompt", null);
-            String userPrompt = getStr(inputs, "userPrompt", null);
-            double temperature = getDouble(inputs, "temperature", DEFAULT_TEMPERATURE);
-            int maxTokens = getInt(inputs, "maxTokens", DEFAULT_MAX_TOKENS);
-            String baseUrl = getStr(inputs, "baseUrl", DEFAULT_BASE_URL);
+            // ---- 解析配置（使用 ConfigUtils 消除重复） ----
+            String model = ConfigUtils.getString(inputs, "model", DEFAULT_MODEL);
+            String systemPrompt = ConfigUtils.getString(inputs, "systemPrompt", null);
+            String userPrompt = ConfigUtils.getString(inputs, "userPrompt", null);
+            double temperature = ConfigUtils.getDouble(inputs, "temperature", DEFAULT_TEMPERATURE);
+            int maxTokens = ConfigUtils.getInt(inputs, "maxTokens", DEFAULT_MAX_TOKENS);
+            String baseUrl = ConfigUtils.getString(inputs, "baseUrl", DEFAULT_BASE_URL);
             String apiKey = resolveApiKey(inputs, baseUrl);
-            int timeout = getInt(inputs, "timeout", DEFAULT_TIMEOUT_SECONDS);
+            int timeout = ConfigUtils.getInt(inputs, "timeout", DEFAULT_TIMEOUT_SECONDS);
 
             // 校验
             if (userPrompt == null || userPrompt.isBlank()) {
@@ -236,7 +236,7 @@ public class LLMNodeExecutor implements NodeExecutor {
 
     private String resolveApiKey(Map<String, Object> inputs, String baseUrl) {
         // 1. config 中直接指定
-        String key = getStr(inputs, "apiKey", null);
+        String key = ConfigUtils.getString(inputs, "apiKey", null);
         if (key != null && !key.isBlank()) return key;
 
         // 2. 根据 baseUrl 猜测环境变量
@@ -260,13 +260,12 @@ public class LLMNodeExecutor implements NodeExecutor {
             }
         }
 
-        // 3. fallback: LLM_API_KEY (支持 application.yml 配置)
+        // 3. fallback: LLM_API_KEY
         key = System.getenv("LLM_API_KEY");
         if (key != null && !key.isBlank()) return key;
         
-        // 4. fallback OPENAI_API_KEY
-        String defaultKey = "sk-sp-T2HXWTFShiAXWJF8OAd2YRk7aswW3BTyMLI0CBpDYOItYPHL";
-        return defaultKey;
+        // 4. fallback: 无 key 时返回 null（进入 Mock 模式）
+        return null;
     }
 
     private String normalizeBaseUrl(String url) {
@@ -274,26 +273,5 @@ public class LLMNodeExecutor implements NodeExecutor {
         // 去掉末尾 /
         while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
         return url;
-    }
-
-    // ========== 工具方法 ==========
-
-    private String getStr(Map<String, Object> m, String key, String def) {
-        Object v = m.get(key);
-        return v != null ? v.toString() : def;
-    }
-
-    private int getInt(Map<String, Object> m, String key, int def) {
-        Object v = m.get(key);
-        if (v == null) return def;
-        if (v instanceof Number) return ((Number) v).intValue();
-        try { return Integer.parseInt(v.toString()); } catch (NumberFormatException e) { return def; }
-    }
-
-    private double getDouble(Map<String, Object> m, String key, double def) {
-        Object v = m.get(key);
-        if (v == null) return def;
-        if (v instanceof Number) return ((Number) v).doubleValue();
-        try { return Double.parseDouble(v.toString()); } catch (NumberFormatException e) { return def; }
     }
 }

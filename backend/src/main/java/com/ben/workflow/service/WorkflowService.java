@@ -6,6 +6,7 @@ import com.ben.workflow.model.WorkflowExecution;
 import com.ben.workflow.repository.ExecutionRepository;
 import com.ben.workflow.repository.WorkflowRepository;
 import com.ben.workflow.websocket.NotificationService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -152,7 +153,7 @@ public class WorkflowService {
 
     public Mono<List<WorkflowExecution>> getExecutionHistory(String createdBy, int limit) {
         return Mono.fromCallable(() -> 
-            executionRepository.findByCreatedByOrderByCreatedAtDesc(createdBy, limit)
+            executionRepository.findByCreatedByOrderByCreatedAtDesc(createdBy, PageRequest.of(0, limit))
         ).subscribeOn(Schedulers.boundedElastic());
     }
 }

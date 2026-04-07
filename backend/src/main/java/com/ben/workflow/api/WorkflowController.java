@@ -44,8 +44,8 @@ public class WorkflowController {
     @DeleteMapping("/{id}")
     public Mono<ResponseEntity<Void>> deleteWorkflow(@PathVariable String id) {
         return workflowService.deleteWorkflow(id)
-            .<ResponseEntity<Void>>map(v -> ResponseEntity.noContent().build())
-            .onErrorResume(e -> Mono.just(ResponseEntity.notFound().build()));
+            .then(Mono.just(ResponseEntity.noContent().<Void>build()))
+            .onErrorResume(e -> Mono.just(ResponseEntity.notFound().<Void>build()));
     }
 
     @PostMapping("/{id}/publish")

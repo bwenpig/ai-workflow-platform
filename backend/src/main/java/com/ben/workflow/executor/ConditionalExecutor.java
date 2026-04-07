@@ -4,6 +4,7 @@ import com.ben.dagscheduler.spi.NodeExecutor;
 import com.ben.dagscheduler.spi.NodeExecutionContext;
 import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
+import com.ben.workflow.util.ConfigUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -45,7 +46,7 @@ public class ConditionalExecutor implements NodeExecutor {
             Map<String, Object> inputs = context.getInputs();
             Map<String, Object> config = context.getInputs();
             
-            String expression = getStringValue(config, "expression", "");
+            String expression = ConfigUtils.getString(config, "expression", "");
             Object value = config.get("value");
             
             // 如果没有指定 value，默认使用第一个输入值
@@ -53,7 +54,7 @@ public class ConditionalExecutor implements NodeExecutor {
                 value = inputs.values().iterator().next();
             }
             
-            Object targetValue = getObjectValue(config, "target", inputs);
+            Object targetValue = ConfigUtils.getObject(config, "target", inputs);
             
             boolean result = evaluateExpression(expression, targetValue, value);
             
@@ -75,7 +76,7 @@ public class ConditionalExecutor implements NodeExecutor {
         
         expression = expression.trim();
         
-        // 解析操作符
+        // 解析操作符（注意顺序：多字符操作符优先）
         if (expression.contains("==")) {
             String[] parts = expression.split("==");
             return evaluateEquals(parts[0].trim(), parts[1].trim(), target);
@@ -180,15 +181,5 @@ public class ConditionalExecutor implements NodeExecutor {
         } catch (Exception e) {
             return target.toString();
         }
-    }
-    
-    private String getStringValue(Map<String, Object> map, String key, String defaultValue) {
-        Object value = map.get(key);
-        return value != null ? value.toString() : defaultValue;
-    }
-    
-    private Object getObjectValue(Map<String, Object> map, String key, Object defaultValue) {
-        Object value = map.get(key);
-        return value != null ? value : defaultValue;
     }
 }

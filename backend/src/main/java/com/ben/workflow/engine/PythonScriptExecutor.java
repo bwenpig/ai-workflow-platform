@@ -15,6 +15,9 @@ import java.util.concurrent.*;
 
 /**
  * Python 脚本执行器
+ * <p>
+ * 使用本地 Python 进程执行用户脚本。
+ * 脚本包装和临时目录清理委托给 {@link PythonScriptUtils}。
  */
 @NodeComponent(value = "python_script", name = "Python 脚本", description = "执行 Python 脚本节点")
 public class PythonScriptExecutor implements NodeExecutor {
@@ -84,12 +87,13 @@ public class PythonScriptExecutor implements NodeExecutor {
         try {
             tempDir = Files.createTempDirectory("python_script_");
             
-            String inputsJson = toJson(inputs);
+            String inputsJson = OBJECT_MAPPER.writeValueAsString(inputs);
             Path inputsFile = tempDir.resolve("inputs.json");
             Files.writeString(inputsFile, inputsJson);
             
+            // 使用 PythonScriptUtils.wrapScript 统一包装脚本
             Path scriptFile = tempDir.resolve("script.py");
-            Files.writeString(scriptFile, wrapScript(script));
+            Files.writeString(scriptFile, PythonScriptUtils.wrapScript(script));
             
             if (config != null && config.getRequirements() != null && !config.getRequirements().isEmpty()) {
                 installRequirements(tempDir, config.getRequirements());
@@ -121,7 +125,7 @@ public class PythonScriptExecutor implements NodeExecutor {
             
             Path outputFile = tempDir.resolve("outputs.json");
             String outputsJson = Files.exists(outputFile) ? Files.readString(outputFile) : "{}";
-            Map<String, Object> outputs = toMap(outputsJson);
+            Map<String, Object> outputs = OBJECT_MAPPER.readValue(outputsJson, Map.class);
             
             return PythonExecutionResult.success(outputs, output);
             
@@ -130,48 +134,9 @@ public class PythonScriptExecutor implements NodeExecutor {
             e.printStackTrace();
             return PythonExecutionResult.failure("执行异常：" + e.getMessage());
         } finally {
-            if (tempDir != null) {
-                cleanup(tempDir);
-            }
+            // 使用 PythonScriptUtils.cleanupTempDir 统一清理
+            PythonScriptUtils.cleanupTempDir(tempDir);
         }
-    }
-    
-    private String wrapScript(String script) {
-        return """
-import json
-import sys
-import os
-
-# 读取输入
-inputs_file = sys.argv[1] if len(sys.argv) > 1 else 'inputs.json'
-try:
-    with open(inputs_file, 'r', encoding='utf-8') as f:
-        inputs = json.load(f)
-except Exception as e:
-    inputs = {}
-    print(f"ERROR loading inputs: {e}", file=sys.stderr)
-
-# DEBUG: 打印加载的 inputs
-print(f"DEBUG PYTHON: inputs keys = {list(inputs.keys())}", file=sys.stderr)
-print(f"DEBUG PYTHON: inputs = {inputs}", file=sys.stderr)
-
-# 执行用户脚本
-outputs = {}
-try:
-%s
-
-except Exception as e:
-    import traceback
-    error_info = {'error': str(e), 'traceback': traceback.format_exc()}
-    with open('outputs.json', 'w', encoding='utf-8') as f:
-        json.dump({'_error': error_info}, f, ensure_ascii=False, indent=2)
-    sys.exit(1)
-
-# 写入输出
-with open('outputs.json', 'w', encoding='utf-8') as f:
-    json.dump(outputs, f, ensure_ascii=False, indent=2)
-sys.exit(0)
-""".formatted(script.indent(4));
     }
     
     private void installRequirements(Path tempDir, List<String> requirements) throws Exception {
@@ -199,93 +164,5 @@ sys.exit(0)
     
     private String readStream(InputStream stream) throws IOException {
         return new String(stream.readAllBytes());
-    }
-    
-    private String toJson(Object obj) {
-        if (obj instanceof Map) {
-            return mapToJson((Map<?, ?>) obj);
-        }
-        return obj.toString();
-    }
-    
-    private String mapToJson(Map<?, ?> map) {
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<?, ?> entry : map.entrySet()) {
-            if (!first) sb.append(",");
-            sb.append("\"").append(entry.getKey()).append("\":");
-            Object value = entry.getValue();
-            if (value instanceof String) {
-                sb.append("\"").append(escapeJson((String) value)).append("\"");
-            } else if (value instanceof Map) {
-                sb.append(mapToJson((Map<?, ?>) value));
-            } else if (value instanceof List) {
-                sb.append(listToJson((List<?>) value));
-            } else if (value instanceof Number || value instanceof Boolean) {
-                sb.append(value);
-            } else if (value == null) {
-                sb.append("null");
-            } else {
-                sb.append("\"").append(escapeJson(value.toString())).append("\"");
-            }
-            first = false;
-        }
-        sb.append("}");
-        return sb.toString();
-    }
-    
-    private String listToJson(List<?> list) {
-        StringBuilder sb = new StringBuilder("[");
-        boolean first = true;
-        for (Object item : list) {
-            if (!first) sb.append(",");
-            if (item instanceof String) {
-                sb.append("\"").append(escapeJson((String) item)).append("\"");
-            } else if (item instanceof Map) {
-                sb.append(mapToJson((Map<?, ?>) item));
-            } else if (item instanceof List) {
-                sb.append(listToJson((List<?>) item));
-            } else if (item instanceof Number || item instanceof Boolean) {
-                sb.append(item);
-            } else if (item == null) {
-                sb.append("null");
-            } else {
-                sb.append("\"").append(escapeJson(item.toString())).append("\"");
-            }
-            first = false;
-        }
-        sb.append("]");
-        return sb.toString();
-    }
-    
-    private String escapeJson(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
-    }
-    
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> toMap(String json) {
-        try {
-            if (json == null || json.trim().isEmpty()) {
-                return new HashMap<>();
-            }
-            return OBJECT_MAPPER.readValue(json, Map.class);
-        } catch (Exception e) {
-            System.out.println("JSON 解析失败：" + e.getMessage());
-            return new HashMap<>();
-        }
-    }
-    
-    private void cleanup(Path tempDir) {
-        try {
-            Files.walk(tempDir).sorted((a, b) -> b.compareTo(a)).forEach(path -> {
-                try {
-                    Files.delete(path);
-                } catch (IOException e) {
-                    System.out.println("清理临时文件失败：" + path);
-                }
-            });
-        } catch (IOException e) {
-            System.out.println("清理临时目录失败：" + e.getMessage());
-        }
     }
 }

@@ -1,8 +1,10 @@
 package com.ben.workflow.config;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
@@ -14,6 +16,28 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", 400);
+        body.put("error", "Bad Request");
+        body.put("message", "Invalid request body: " + e.getMessage());
+
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ServerWebInputException.class)
+    public Mono<ResponseEntity<Map<String, Object>>> handleServerWebInputException(ServerWebInputException e) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", 400);
+        body.put("error", "Bad Request");
+        body.put("message", e.getMessage());
+
+        return Mono.just(ResponseEntity.badRequest().body(body));
+    }
 
     @ExceptionHandler(RuntimeException.class)
     public Mono<ResponseEntity<Map<String, Object>>> handleRuntimeException(RuntimeException e) {

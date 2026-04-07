@@ -95,21 +95,34 @@ class LLMNodeExecutorTest {
     }
 
     @Test
-    void testExecute_missingApiKey() throws Exception {
-        // 确保环境变量不存在时才会失败
-        // 注意：如果环境中配置了 OPENAI_API_KEY 则此测试会通过 API Key 检查
-        String envKey = System.getenv("OPENAI_API_KEY");
-        if (envKey == null || envKey.isBlank()) {
-            Map<String, Object> inputs = new HashMap<>();
-            inputs.put("userPrompt", "hello");
-            // no apiKey, no env
+    void testExecute_missingApiKey_mockMode() throws Exception {
+        // 当无 API Key 时进入 Mock 模式：返回成功 + _mock=true
+        // 清除环境变量影响：即使环境中有 key，inputs 中不传 apiKey 且 baseUrl 用不匹配任何环境变量的值
+        Map<String, Object> inputs = new HashMap<>();
+        inputs.put("userPrompt", "hello");
+        inputs.put("baseUrl", "https://mock.test.local/v1"); // 不匹配任何环境变量检测
+        // no apiKey
 
-            NodeExecutionContext ctx = new NodeExecutionContext("node1", "test", "llm", inputs);
-            NodeExecutionResult result = executor.execute(ctx);
-
-            assertTrue(result.isFailed());
-            assertTrue(result.getErrorMessage().contains("API Key"));
+        String envLlmKey = System.getenv("LLM_API_KEY");
+        if (envLlmKey != null && !envLlmKey.isBlank()) {
+            // 环境中有 LLM_API_KEY，Mock 模式不会触发，跳过此测试
+            return;
         }
+
+        NodeExecutionContext ctx = new NodeExecutionContext("node1", "test", "llm", inputs);
+        NodeExecutionResult result = executor.execute(ctx);
+
+        // Mock 模式：成功返回
+        assertTrue(result.isSuccess(), "Mock 模式应返回 success");
+        assertFalse(result.isFailed(), "Mock 模式不应 failed");
+
+        // 验证 outputs
+        Map<String, Object> outputs = result.getOutputs();
+        assertNotNull(outputs);
+        assertEquals(true, outputs.get("_mock"), "outputs 应包含 _mock=true");
+        assertNotNull(outputs.get("content"), "outputs 应包含 content");
+        assertNotNull(outputs.get("model"), "outputs 应包含 model");
+        assertEquals("stop", outputs.get("finish_reason"));
     }
 
     @Test

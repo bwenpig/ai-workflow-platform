@@ -4,6 +4,7 @@ import com.ben.dagscheduler.spi.NodeExecutor;
 import com.ben.dagscheduler.spi.NodeExecutionContext;
 import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
+import com.ben.workflow.util.ConfigUtils;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -64,19 +65,19 @@ public class HttpRequestExecutor implements NodeExecutor {
             Map<String, Object> inputs = context != null ? context.getInputs() : Collections.emptyMap();
             if (inputs == null) inputs = Collections.emptyMap();
 
-            // 解析参数
-            String url = getStringParam(inputs, "url", null);
+            // 解析参数（使用 ConfigUtils 消除重复）
+            String url = ConfigUtils.getString(inputs, "url", null);
             if (url == null || url.isBlank()) {
                 return NodeExecutionResult.failed(nodeId, "缺少必填参数: url", null, startTime, LocalDateTime.now());
             }
 
-            String method = getStringParam(inputs, "method", "GET").toUpperCase();
+            String method = ConfigUtils.getString(inputs, "method", "GET").toUpperCase();
             if (!ALLOWED_METHODS.contains(method)) {
                 return NodeExecutionResult.failed(nodeId, "不支持的 HTTP 方法: " + method + "，仅支持 " + ALLOWED_METHODS, null, startTime, LocalDateTime.now());
             }
 
-            String body = getStringParam(inputs, "body", null);
-            int timeout = getIntParam(inputs, "timeout", DEFAULT_TIMEOUT_SECONDS);
+            String body = ConfigUtils.getString(inputs, "body", null);
+            int timeout = ConfigUtils.getInt(inputs, "timeout", DEFAULT_TIMEOUT_SECONDS);
 
             @SuppressWarnings("unchecked")
             Map<String, String> headers = (Map<String, String>) inputs.get("headers");
@@ -137,23 +138,6 @@ public class HttpRequestExecutor implements NodeExecutor {
         } catch (Exception e) {
             LocalDateTime endTime = LocalDateTime.now();
             return NodeExecutionResult.failed(nodeId, e, startTime, endTime);
-        }
-    }
-
-    private String getStringParam(Map<String, Object> inputs, String key, String defaultValue) {
-        Object val = inputs.get(key);
-        if (val == null) return defaultValue;
-        return val.toString();
-    }
-
-    private int getIntParam(Map<String, Object> inputs, String key, int defaultValue) {
-        Object val = inputs.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).intValue();
-        try {
-            return Integer.parseInt(val.toString());
-        } catch (NumberFormatException e) {
-            return defaultValue;
         }
     }
 }

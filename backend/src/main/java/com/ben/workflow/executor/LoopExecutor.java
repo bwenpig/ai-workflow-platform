@@ -4,6 +4,7 @@ import com.ben.dagscheduler.spi.NodeExecutor;
 import com.ben.dagscheduler.spi.NodeExecutionContext;
 import com.ben.dagscheduler.spi.NodeExecutionResult;
 import com.ben.workflow.spi.NodeComponent;
+import com.ben.workflow.util.ConfigUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -67,11 +68,11 @@ public class LoopExecutor implements NodeExecutor {
                 items = Collections.singletonList(itemsObj);
             }
             
-            // 获取配置
-            String itemVar = getStringValue(config, "item_var", "item");
-            String indexVar = getStringValue(config, "index_var", "index");
-            int concurrency = getIntValue(config, "concurrency", DEFAULT_CONCURRENCY);
-            int maxIterations = getIntValue(config, "max_iterations", DEFAULT_MAX_ITERATIONS);
+            // 获取配置（使用 ConfigUtils 消除重复）
+            String itemVar = ConfigUtils.getString(config, "item_var", "item");
+            String indexVar = ConfigUtils.getString(config, "index_var", "index");
+            int concurrency = ConfigUtils.getInt(config, "concurrency", DEFAULT_CONCURRENCY);
+            int maxIterations = ConfigUtils.getInt(config, "max_iterations", DEFAULT_MAX_ITERATIONS);
             
             // 限制迭代次数
             if (items.size() > maxIterations) {
@@ -144,23 +145,5 @@ public class LoopExecutor implements NodeExecutor {
             return result;
         }
         return Map.of("processed", true, "data", item != null ? item.toString() : "null");
-    }
-    
-    private String getStringValue(Map<String, Object> map, String key, String defaultValue) {
-        Object value = map.get(key);
-        return value != null ? value.toString() : defaultValue;
-    }
-    
-    private int getIntValue(Map<String, Object> map, String key, int defaultValue) {
-        Object value = map.get(key);
-        if (value == null) return defaultValue;
-        if (value instanceof Number) {
-            return ((Number) value).intValue();
-        }
-        try {
-            return Integer.parseInt(value.toString());
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
     }
 }

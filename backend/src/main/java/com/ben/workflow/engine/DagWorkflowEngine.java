@@ -104,10 +104,10 @@ public class DagWorkflowEngine implements WorkflowEngine {
 
     private void executeAsync(String instanceId, Workflow workflow, Map<String, Object> inputs) {
         try {
-            logService.addLog(instanceId, null, "info", "工作流开始执行: " + workflow.getName());
+            if (logService != null) logService.addLog(instanceId, null, "info", "工作流开始执行: " + workflow.getName());
             
             List<String> executionOrder = topologicalSort(workflow);
-            logService.addLog(instanceId, null, "info", "DAG拓扑排序完成，共 " + executionOrder.size() + " 个节点");
+            if (logService != null) logService.addLog(instanceId, null, "info", "DAG拓扑排序完成，共 " + executionOrder.size() + " 个节点");
 
             Map<String, Object> nodeOutputs = new HashMap<>();
             Map<String, WorkflowExecution.NodeExecutionState> nodeStates = new HashMap<>();
@@ -117,7 +117,7 @@ public class DagWorkflowEngine implements WorkflowEngine {
                 if (node == null) continue;
 
                 Map<String, Object> nodeInputs = collectNodeInputs(workflow, node, nodeOutputs);
-                logService.addLog(instanceId, nodeId, "info", "节点 [" + nodeId + "] 开始执行");
+                if (logService != null) logService.addLog(instanceId, nodeId, "info", "节点 [" + nodeId + "] 开始执行");
                 notificationService.notifyNodeStart(instanceId, nodeId);
                 
                 // 创建节点状态
@@ -138,17 +138,17 @@ public class DagWorkflowEngine implements WorkflowEngine {
                 nodeStates.put(nodeId, nodeState);
                 updateExecutionStatus(instanceId, "RUNNING", nodeStates);
                 
-                logService.addLog(instanceId, nodeId, "success", "节点 [" + nodeId + "] 执行成功");
+                if (logService != null) logService.addLog(instanceId, nodeId, "success", "节点 [" + nodeId + "] 执行成功");
                 notificationService.notifyNodeComplete(instanceId, nodeId, Map.of("output", result));
             }
 
             // 执行完成
-            logService.addLog(instanceId, null, "success", "工作流执行完成!");
+            if (logService != null) logService.addLog(instanceId, null, "success", "工作流执行完成!");
             updateExecutionStatus(instanceId, "SUCCESS", nodeStates);
             System.out.println("工作流执行完成：instanceId=" + instanceId);
 
         } catch (Exception e) {
-            logService.addLog(instanceId, null, "error", "工作流执行失败: " + e.getMessage());
+            if (logService != null) logService.addLog(instanceId, null, "error", "工作流执行失败: " + e.getMessage());
             System.err.println("工作流执行失败：instanceId=" + instanceId + ", error=" + e.getMessage());
             e.printStackTrace();
             updateExecutionStatus(instanceId, "FAILED", new HashMap<>());
@@ -498,8 +498,9 @@ public class DagWorkflowEngine implements WorkflowEngine {
         System.out.println("DEBUG executePythonScript: nodeId=" + node.getNodeId() + ", inputs keys=" + (inputs != null ? inputs.keySet() : "null"));
         try {
             Map<String, Object> config = node.getConfig();
-            String script = config != null ? (String) config.get("script") : "";
-            Integer timeout = config != null ? (Integer) config.get("timeout") : 30;
+            String script = (config != null && config.containsKey("script")) ? (String) config.get("script") : "";
+            if (script == null || script.isBlank()) script = "pass";
+            Integer timeout = (config != null && config.containsKey("timeout")) ? (Integer) config.get("timeout") : 30;
             
             PythonNodeConfig nodeConfig = new PythonNodeConfig();
             nodeConfig.setScript(script);

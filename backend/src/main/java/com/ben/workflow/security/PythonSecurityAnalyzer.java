@@ -250,7 +250,7 @@ public class PythonSecurityAnalyzer {
         if (!config.isSafeModule(moduleName)) {
             violations.add("检测到未授权的模块导入：" + moduleName);
         } else if (config.requiresNetworkPermission(moduleName) && !config.isNetworkEnabled()) {
-            violations.add("模块 " + moduleName + " 需要网络权限，但当前配置已禁用网络");
+            warnings.add("模块 " + moduleName + " 需要网络权限，但当前配置已禁用网络（Docker --network none 已提供网络隔离）");
         }
     }
     

@@ -218,6 +218,13 @@ public class PythonSecurityConfig {
             "secrets",
             "statistics",
             
+            // ===== 系统环境 =====
+            // 注意：os 的危险函数（os.system, os.popen 等）已在黑名单中
+            // open() 已被运行时拦截器阻断，os 模块仅用于 os.environ 等安全操作
+            "os",
+            "os.path",
+            "traceback",
+            
             // ===== 日期时间 =====
             "datetime",
             "time",

@@ -16,8 +16,8 @@ public class Workflow {
     private Instant createdAt;
     private Instant updatedAt;
     private String createdBy;
-    private Integer version;
-    private Boolean published;
+    private Integer version = 1;
+    private Boolean published = false;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

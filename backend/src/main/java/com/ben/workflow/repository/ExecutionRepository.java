@@ -1,6 +1,7 @@
 package com.ben.workflow.repository;
 
 import com.ben.workflow.model.WorkflowExecution;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -24,9 +25,9 @@ public interface ExecutionRepository extends MongoRepository<WorkflowExecution, 
     List<WorkflowExecution> findByStatus(String status);
 
     /**
-     * 查找用户最近的执行记录
+     * 查找用户最近的执行记录（按创建时间倒序，使用 Pageable 控制数量）
      */
-    List<WorkflowExecution> findByCreatedByOrderByCreatedAtDesc(String createdBy, int limit);
+    List<WorkflowExecution> findByCreatedByOrderByCreatedAtDesc(String createdBy, Pageable pageable);
 
     /**
      * 查找运行中的执行

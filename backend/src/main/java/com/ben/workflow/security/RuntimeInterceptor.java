@@ -19,7 +19,7 @@ import java.util.Set;
  * <ul>
  *   <li>覆盖 __import__ 函数，拦截模块导入</li>
  *   <li>覆盖 eval/exec 函数，禁止动态执行</li>
- *   <li>覆盖 open 函数，禁止文件操作</li>
+ *   <li>覆盖 open 函数，禁止文件操作（I/O 框架白名单路径除外）</li>
  *   <li>注入 SecurityError 异常类</li>
  *   <li>可选：注入资源限制（超时、内存）</li>
  * </ul>
@@ -34,7 +34,7 @@ import java.util.Set;
  * }</pre>
  * 
  * @author 龙傲天
- * @version 2.0
+ * @version 2.1
  * @since 2026-04-01
  */
 public class RuntimeInterceptor {
@@ -44,6 +44,10 @@ public class RuntimeInterceptor {
     
     /**
      * 安全拦截器 Python 模板
+     * 
+     * 注意：
+     * - open() 拦截使用白名单机制，允许 I/O 框架读写 inputs.json / outputs.json
+     * - import 拦截放行相对导入和 Python 内部模块（_开头），仅检查顶层绝对导入
      */
     private static final String INTERCEPTOR_TEMPLATE = """
 # =============================================================================
@@ -86,7 +90,10 @@ _original_import = builtins.__import__
 
 def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     \"\"\"安全的导入函数 - 拦截未授权模块\"\"\"
-    _interceptor.check_import(name)
+    # 放行相对导入（level > 0）和 Python 内部模块（_开头 / importlib）
+    # 这些是 Python 导入机制自身所需，不属于用户代码的导入行为
+    if level == 0 and not name.startswith('_') and name != 'importlib':
+        _interceptor.check_import(name)
     return _original_import(name, globals, locals, fromlist, level)
 
 builtins.__import__ = _safe_import
@@ -109,8 +116,21 @@ def _blocked_compile(*args, **kwargs):
 
 builtins.compile = _blocked_compile
 
-# 覆盖 open - 禁止文件操作
+# 覆盖 open - 白名单路径放行，其余禁止
+# 保存原始 open，供 I/O 框架白名单文件使用
+_original_open = builtins.open
+
+# I/O 框架白名单文件名（仅允许 PythonScriptUtils 框架所需的文件）
+_ALLOWED_IO_BASENAMES = {'inputs.json', 'outputs.json'}
+
 def _blocked_open(*args, **kwargs):
+    \"\"\"安全的 open - 仅允许 I/O 框架白名单文件，其余全部拦截\"\"\"
+    if args:
+        filepath = str(args[0])
+        # 提取文件名（不依赖 os 模块，纯字符串操作）
+        basename = filepath.rsplit('/', 1)[-1].rsplit('\\\\', 1)[-1]
+        if basename in _ALLOWED_IO_BASENAMES:
+            return _original_open(*args, **kwargs)
     raise __SecurityError__("禁止使用 open() - 文件操作风险")
 
 builtins.open = _blocked_open
