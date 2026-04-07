@@ -80,6 +80,18 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Jackson YAML (for executors.yaml config loading) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Mail (for EmailExecutor) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

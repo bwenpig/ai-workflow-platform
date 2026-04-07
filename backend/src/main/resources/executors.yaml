@@ -1,0 +1,36 @@
+# Executor 注册配置
+# 支持声明式注册 Executor，配置优先于 SPI 自动发现
+
+executors:
+  # 内置 Executor
+  - type: conditional
+    class: com.ben.workflow.executor.ConditionalExecutor
+    enabled: true
+
+  - type: loop
+    class: com.ben.workflow.executor.LoopExecutor
+    enabled: true
+    config:
+      maxIterations: 1000
+
+  - type: http_request
+    class: com.ben.workflow.executor.HttpRequestExecutor
+    enabled: true
+    config:
+      defaultTimeout: 30000
+
+  - type: llm
+    class: com.ben.workflow.executor.LLMNodeExecutor
+    enabled: true
+    config:
+      defaultModel: hunyuan-2.0-instruct
+      defaultTimeout: 120000
+
+  # 扩展 Executor
+  - type: email
+    class: com.ben.workflow.executor.EmailExecutor
+    enabled: true
+    config:
+      smtpHost: smtp.gmail.com
+      smtpPort: 587
+      useTls: true
