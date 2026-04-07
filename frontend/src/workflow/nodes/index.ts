@@ -1,11 +1,15 @@
-export { IfNode } from './IfNode'
-export { ParallelNode } from './ParallelNode'
-export { MergeNode } from './MergeNode'
-export { SubWorkflowNode } from './SubWorkflowNode'
-export { TaskNode } from './TaskNode'
-export { default as HttpRequestNode } from './HttpRequestNode'
-export { default as ConditionalNode } from './ConditionalNode'
-export { default as LoopNode } from './LoopNode'
+import { IfNode } from './IfNode'
+import { ParallelNode } from './ParallelNode'
+import { MergeNode } from './MergeNode'
+import { SubWorkflowNode } from './SubWorkflowNode'
+import { TaskNode } from './TaskNode'
+import HttpRequestNode from './HttpRequestNode'
+import ConditionalNode from './ConditionalNode'
+import LoopNode from './LoopNode'
+import EmailNode from './EmailNode'
+
+export { IfNode, ParallelNode, MergeNode, SubWorkflowNode, TaskNode }
+export { HttpRequestNode, ConditionalNode, LoopNode, EmailNode }
 
 // 节点类型映射
 export const nodeTypes = {
@@ -17,6 +21,7 @@ export const nodeTypes = {
   http_request: HttpRequestNode,
   conditional: ConditionalNode,
   loop: LoopNode,
+  email: EmailNode,
 }
 
 // 节点类型枚举
@@ -29,6 +34,7 @@ export enum WorkflowNodeType {
   HTTP_REQUEST = 'http_request',
   CONDITIONAL = 'conditional',
   LOOP = 'loop',
+  EMAIL = 'email',
 }
 
 // 创建默认节点数据
@@ -87,6 +93,16 @@ export const createDefaultNodeData = (type: WorkflowNodeType) => {
         indexVar: 'index',
         concurrency: 1,
         maxIterations: 100,
+      }
+    case WorkflowNodeType.EMAIL:
+      return {
+        label: '邮件发送',
+        to: [],
+        cc: [],
+        subject: '',
+        body: '',
+        from: '',
+        attachments: [],
       }
     default:
       return { label: '节点' }

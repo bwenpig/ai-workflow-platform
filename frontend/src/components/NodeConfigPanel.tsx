@@ -35,6 +35,9 @@ export default function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPan
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
+  // 当前选中的模型提供商（从 config 中读取）
+  const selectedProvider = config.modelProvider || '';
+
   // 根据节点类型渲染不同配置项
   const renderConfigFields = () => {
     switch (node.type) {
@@ -55,20 +58,24 @@ export default function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPan
       case 'model':
         return (
           <div>
-            <label style={styles.label}>模型选择</label>
+            <label style={styles.label}>模型提供商</label>
             <select
-              value={node.modelProvider || ''}
+              value={selectedProvider}
               onChange={(e) => handleChange('modelProvider', e.target.value)}
               style={styles.select}
             >
               <option value="">请选择模型</option>
-              <option value="kling">🎬 可灵 (Kling) - 视频生成</option>
-              <option value="wan">🎨 万相 (Wan) - 图片生成</option>
-              <option value="seedance">🎬 Seedance - 视频生成</option>
-              <option value="nanobanana">🎨 NanoBanana - 图片生成</option>
+              <optgroup label="🎬 视频生成">
+                <option value="kling">🎬 可灵 (Kling)</option>
+                <option value="seedance">🎬 即梦 (Seedance)</option>
+              </optgroup>
+              <optgroup label="🖼️ 图片生成">
+                <option value="wan">🎨 海螺 (Wan)</option>
+                <option value="nanobanana">🎨 NanoBanana</option>
+              </optgroup>
             </select>
 
-            {node.modelProvider && (
+            {selectedProvider && (
               <>
                 <label style={styles.label}>提示词</label>
                 <textarea
@@ -79,7 +86,7 @@ export default function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPan
                   placeholder="描述你想生成的内容..."
                 />
 
-                {['kling', 'seedance'].includes(node.modelProvider) && (
+                {['kling', 'seedance'].includes(selectedProvider) && (
                   <>
                     <label style={styles.label}>视频时长 (秒)</label>
                     <input
@@ -104,7 +111,7 @@ export default function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPan
                   </>
                 )}
 
-                {['wan', 'nanobanana'].includes(node.modelProvider) && (
+                {['wan', 'nanobanana'].includes(selectedProvider) && (
                   <>
                     <label style={styles.label}>图片尺寸</label>
                     <select
@@ -138,6 +145,65 @@ export default function NodeConfigPanel({ node, onClose, onSave }: NodeConfigPan
               <option value="inpaint">✏️ 局部重绘</option>
               <option value="remove_bg">✂️ 去除背景</option>
             </select>
+          </div>
+        );
+
+      case 'email':
+        return (
+          <div>
+            <label style={styles.label}>收件人 (逗号分隔)</label>
+            <input
+              type="text"
+              value={Array.isArray(config.to) ? config.to.join(', ') : (config.to || '')}
+              onChange={(e) => handleChange('to', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+              style={styles.input}
+              placeholder="user@example.com, user2@example.com"
+            />
+
+            <label style={styles.label}>抄送 (可选, 逗号分隔)</label>
+            <input
+              type="text"
+              value={Array.isArray(config.cc) ? config.cc.join(', ') : (config.cc || '')}
+              onChange={(e) => handleChange('cc', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+              style={styles.input}
+              placeholder="cc@example.com"
+            />
+
+            <label style={styles.label}>邮件主题</label>
+            <input
+              type="text"
+              value={config.subject || ''}
+              onChange={(e) => handleChange('subject', e.target.value)}
+              style={styles.input}
+              placeholder="输入邮件主题..."
+            />
+
+            <label style={styles.label}>邮件正文 (支持 HTML)</label>
+            <textarea
+              value={config.body || ''}
+              onChange={(e) => handleChange('body', e.target.value)}
+              style={styles.textarea}
+              rows={6}
+              placeholder="输入邮件正文..."
+            />
+
+            <label style={styles.label}>发件人 (可选)</label>
+            <input
+              type="text"
+              value={config.from || ''}
+              onChange={(e) => handleChange('from', e.target.value)}
+              style={styles.input}
+              placeholder="sender@example.com"
+            />
+
+            <label style={styles.label}>附件路径 (可选, 逗号分隔)</label>
+            <input
+              type="text"
+              value={Array.isArray(config.attachments) ? config.attachments.join(', ') : (config.attachments || '')}
+              onChange={(e) => handleChange('attachments', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+              style={styles.input}
+              placeholder="/path/to/file1, /path/to/file2"
+            />
           </div>
         );
 
