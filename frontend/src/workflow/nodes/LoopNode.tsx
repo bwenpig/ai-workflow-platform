@@ -10,7 +10,7 @@ const LoopNode: React.FC<NodeProps> = ({ data, selected }) => {
     <Card 
       size="small" 
       style={{ 
-        width: 200, 
+        width: 150, 
         borderColor: selected ? '#1890ff' : '#d9d9d9',
         borderWidth: selected ? 2 : 1 
       }}

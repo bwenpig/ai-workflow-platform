@@ -61,11 +61,11 @@ model:
     enabled: false
     base-url: http://localhost:7860
 
-  # LLM 大模型 (Chat Completions)
+  # LLM 大模型 (Chat Completions) - Code Platform
   llm:
     base-url: https://api.lkeap.cloud.tencent.com/coding/v3
     api-key: sk-sp-T2HXWTFShiAXWJF8OAd2YRk7aswW3BTyMLI0CBpDYOItYPHL
-    default-model: hunyuan-2.0-instruct
+    default-model: kimi-k2.5
 
 # MinIO 对象存储配置
 minio:

@@ -65,7 +65,7 @@ function ParallelNodeComponent({ id, data, selected }: NodeProps) {
     <Card
       size="small"
       style={{
-        width: 200,
+        width: 150,
         ...getBorderStyle(),
         backgroundColor: status === 'running' ? '#fffbe6' : '#f6ffed',
         boxShadow: selected 

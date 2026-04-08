@@ -66,7 +66,7 @@ function IfNodeComponent({ id, data, selected }: NodeProps) {
     <Card
       size="small"
       style={{
-        width: 220,
+        width: 150,
         ...getBorderStyle(),
         backgroundColor: status === 'running' ? '#fffbe6' : '#fff',
         boxShadow: selected 
@@ -114,7 +114,7 @@ function IfNodeComponent({ id, data, selected }: NodeProps) {
             size="small"
             value={data.operator || 'equals'}
             onChange={(value) => handleConditionChange('operator', value)}
-            style={{ width: 100, fontSize: 12 }}
+            style={{ width: 80, fontSize: 11 }}
             options={[
               { value: 'equals', label: '=' },
               { value: 'notEquals', label: '≠' },

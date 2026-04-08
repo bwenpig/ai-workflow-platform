@@ -34,3 +34,23 @@ executors:
       smtpHost: smtp.gmail.com
       smtpPort: 587
       useTls: true
+
+  - type: wx_push
+    class: com.ben.workflow.executor.WxPushExecutor
+    enabled: true
+    config:
+      apiUrl: http://127.0.0.1:8080
+      appId: ""
+      appSecret: ""
+
+  # ETL 数据清洗
+  - type: etl
+    class: com.ben.workflow.executor.EtlExecutor
+    enabled: true
+
+  # LLM 智能推荐
+  - type: llm_recommendation
+    class: com.ben.workflow.executor.LlmRecommendationExecutor
+    enabled: true
+    config:
+      defaultModel: hunyuan-2.0-instruct

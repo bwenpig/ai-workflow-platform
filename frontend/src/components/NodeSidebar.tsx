@@ -36,6 +36,11 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   { type: 'http_request', label: 'HTTP 请求', icon: '🌐', description: '调用外部 API 接口', category: 'data' },
   // 集成
   { type: 'email', label: '邮件发送', icon: '📧', description: '通过 SMTP 发送邮件', category: 'integration' },
+  { type: 'wx_push', label: '微信推送', icon: '💬', description: '通过微信推送消息', category: 'integration' },
+  // 数据清洗
+  { type: 'etl', label: 'ETL 数据清洗', icon: '🔄', description: '归一化多数据源内容格式', category: 'data' },
+  // AI 推荐
+  { type: 'llm_recommendation', label: 'LLM 智能推荐', icon: '🎯', description: '结合用户画像的个性化推荐', category: 'ai' },
 ];
 
 interface CategoryConfig {

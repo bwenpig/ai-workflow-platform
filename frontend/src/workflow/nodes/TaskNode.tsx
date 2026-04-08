@@ -82,7 +82,7 @@ function TaskNodeComponent({ id, data, selected }: NodeProps) {
     <Card
       size="small"
       style={{
-        width: 220,
+        width: 150,
         ...getBorderStyle(),
         backgroundColor: status === 'running' ? '#fffbe6' : '#fff',
         boxShadow: selected 

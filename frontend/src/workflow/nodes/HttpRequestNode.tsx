@@ -9,7 +9,7 @@ const HttpRequestNode: React.FC<NodeProps> = ({ data, selected }) => {
     <Card 
       size="small" 
       style={{ 
-        width: 220, 
+        width: 150, 
         borderColor: selected ? '#1890ff' : '#d9d9d9',
         borderWidth: selected ? 2 : 1 
       }}
@@ -21,7 +21,7 @@ const HttpRequestNode: React.FC<NodeProps> = ({ data, selected }) => {
           overflow: 'hidden', 
           textOverflow: 'ellipsis', 
           whiteSpace: 'nowrap',
-          maxWidth: 180 
+          maxWidth: 110 
         }}>
           URL: {url || '未设置'}
         </div>

@@ -7,9 +7,10 @@ import HttpRequestNode from './HttpRequestNode'
 import ConditionalNode from './ConditionalNode'
 import LoopNode from './LoopNode'
 import EmailNode from './EmailNode'
+import WxPushNode from './WxPushNode'
 
 export { IfNode, ParallelNode, MergeNode, SubWorkflowNode, TaskNode }
-export { HttpRequestNode, ConditionalNode, LoopNode, EmailNode }
+export { HttpRequestNode, ConditionalNode, LoopNode, EmailNode, WxPushNode }
 
 // 节点类型映射
 export const nodeTypes = {
@@ -22,6 +23,7 @@ export const nodeTypes = {
   conditional: ConditionalNode,
   loop: LoopNode,
   email: EmailNode,
+  wx_push: WxPushNode,
 }
 
 // 节点类型枚举
@@ -35,6 +37,7 @@ export enum WorkflowNodeType {
   CONDITIONAL = 'conditional',
   LOOP = 'loop',
   EMAIL = 'email',
+  WX_PUSH = 'wx_push',
 }
 
 // 创建默认节点数据
@@ -103,6 +106,13 @@ export const createDefaultNodeData = (type: WorkflowNodeType) => {
         body: '',
         from: '',
         attachments: [],
+      }
+    case WorkflowNodeType.WX_PUSH:
+      return {
+        label: '微信推送',
+        to: '',
+        content: '',
+        silent: false,
       }
     default:
       return { label: '节点' }

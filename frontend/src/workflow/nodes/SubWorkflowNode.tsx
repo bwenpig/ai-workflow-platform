@@ -84,7 +84,7 @@ function SubWorkflowNodeComponent({ id, data, selected }: NodeProps) {
       <Card
         size="small"
         style={{
-          width: 220,
+          width: 150,
           ...getBorderStyle(),
           backgroundColor: status === 'running' ? '#fffbe6' : '#f9f0ff',
           boxShadow: selected 
@@ -180,7 +180,7 @@ function SubWorkflowNodeComponent({ id, data, selected }: NodeProps) {
             backgroundColor: '#fafafa',
             border: '1px dashed #d9d9d9',
             borderRadius: 8,
-            minWidth: 220,
+            minWidth: 150,
           }}
         >
           <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>

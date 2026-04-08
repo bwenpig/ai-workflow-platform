@@ -1,0 +1,152 @@
+{
+  "version": "1.0.0",
+  "name": "科技资讯智能推荐工作流",
+  "description": "并行获取 HackerNews、Reddit、GitHub Trending、36kr 四个数据源 → Join 汇聚 → ETL 清洗 → LLM 智能推荐 → 微信推送",
+  "createdAt": "2026-04-08T00:00:00Z",
+  "metadata": {
+    "author": "ben",
+    "tags": ["tech-news", "recommendation", "etl", "multi-source"]
+  },
+  "nodes": [
+    {
+      "id": "hackernews",
+      "type": "http_request",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "HackerNews",
+        "icon": "🌐",
+        "type": "http_request",
+        "config": {
+          "url": "https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty&orderBy=\"$key\"&limitToFirst=20",
+          "method": "GET",
+          "timeout": 15000,
+          "headers": {}
+        }
+      }
+    },
+    {
+      "id": "reddit",
+      "type": "http_request",
+      "position": { "x": 100, "y": 200 },
+      "data": {
+        "label": "Reddit r/technology",
+        "icon": "🌐",
+        "type": "http_request",
+        "config": {
+          "url": "https://www.reddit.com/r/technology/hot.json?limit=20",
+          "method": "GET",
+          "timeout": 15000,
+          "headers": {
+            "User-Agent": "AI-Workflow/1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "github",
+      "type": "http_request",
+      "position": { "x": 100, "y": 350 },
+      "data": {
+        "label": "GitHub Trending",
+        "icon": "🌐",
+        "type": "http_request",
+        "config": {
+          "url": "https://api.github.com/search/repositories?q=stars:>1000+pushed:>2026-04-01&sort=stars&order=desc&per_page=20",
+          "method": "GET",
+          "timeout": 15000,
+          "headers": {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "AI-Workflow/1.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "kr36",
+      "type": "http_request",
+      "position": { "x": 100, "y": 500 },
+      "data": {
+        "label": "36kr 科技资讯",
+        "icon": "🌐",
+        "type": "http_request",
+        "config": {
+          "url": "https://gateway.36kr.com/api/mis/nav/home/nav/rank/hot",
+          "method": "POST",
+          "timeout": 15000,
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": "{\"partner_id\":\"wap\",\"param\":{\"subnavType\":\"hot\",\"pageSize\":20,\"pageEvent\":0}}"
+        }
+      }
+    },
+    {
+      "id": "join",
+      "type": "simple",
+      "position": { "x": 450, "y": 250 },
+      "data": {
+        "label": "Join 汇聚",
+        "icon": "🔀",
+        "type": "process"
+      }
+    },
+    {
+      "id": "etl",
+      "type": "etl",
+      "position": { "x": 700, "y": 250 },
+      "data": {
+        "label": "ETL 数据清洗",
+        "icon": "🔄",
+        "type": "etl",
+        "config": {
+          "sources": ["HackerNews", "Reddit", "GitHub", "36kr"]
+        }
+      }
+    },
+    {
+      "id": "recommendation",
+      "type": "llm_recommendation",
+      "position": { "x": 950, "y": 250 },
+      "data": {
+        "label": "LLM 智能推荐",
+        "icon": "🎯",
+        "type": "llm_recommendation",
+        "config": {
+          "model": "hunyuan-2.0-instruct",
+          "temperature": 0.7,
+          "maxTokens": 4096,
+          "userProfile": {
+            "profession": "Java 工程师 + 技术 Leader",
+            "businessFocus": "AI 生图、AI 生视频",
+            "interests": ["数码爱好者", "游戏爱好者", "爱狗人士", "业余拳击运动"],
+            "language": "中文"
+          }
+        }
+      }
+    },
+    {
+      "id": "wx_push",
+      "type": "wx_push",
+      "position": { "x": 1200, "y": 250 },
+      "data": {
+        "label": "微信推送",
+        "icon": "💬",
+        "type": "wx_push",
+        "config": {
+          "to": "",
+          "content": "{{recommendation}}",
+          "silent": false
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e-hn-join", "source": "hackernews", "target": "join" },
+    { "id": "e-reddit-join", "source": "reddit", "target": "join" },
+    { "id": "e-github-join", "source": "github", "target": "join" },
+    { "id": "e-36kr-join", "source": "kr36", "target": "join" },
+    { "id": "e-join-etl", "source": "join", "target": "etl" },
+    { "id": "e-etl-rec", "source": "etl", "target": "recommendation" },
+    { "id": "e-rec-wx", "source": "recommendation", "target": "wx_push" }
+  ]
+}

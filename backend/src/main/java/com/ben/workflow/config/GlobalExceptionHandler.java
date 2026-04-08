@@ -1,7 +1,6 @@
 package com.ben.workflow.config;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ServerWebInputException;
@@ -12,21 +11,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 全局异常处理
+ * 全局异常处理 (WebFlux)
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", 400);
-        body.put("error", "Bad Request");
-        body.put("message", "Invalid request body: " + e.getMessage());
-
-        return ResponseEntity.badRequest().body(body);
-    }
 
     @ExceptionHandler(ServerWebInputException.class)
     public Mono<ResponseEntity<Map<String, Object>>> handleServerWebInputException(ServerWebInputException e) {

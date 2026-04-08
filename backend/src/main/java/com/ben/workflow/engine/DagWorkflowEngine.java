@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class DagWorkflowEngine implements WorkflowEngine {
@@ -194,56 +195,89 @@ public class DagWorkflowEngine implements WorkflowEngine {
 
     private Map<String, Object> collectNodeInputs(Workflow workflow, WorkflowNode node, Map<String, Object> outputs) {
         Map<String, Object> inputs = new HashMap<>();
+        
         for (WorkflowEdge edge : workflow.getEdges()) {
             if (edge.getTarget().equals(node.getNodeId())) {
-                Object sourceOutput = outputs.get(edge.getSource());
-                // System.out.println("收集输入：edge=" + edge.getSource() + "->" + edge.getTarget() + ", sourceOutput=" + (sourceOutput != null ? sourceOutput.getClass() : "null"));
-                if (sourceOutput != null && sourceOutput instanceof Map) {
+                String sourceNodeId = edge.getSource();
+                Object sourceOutput = outputs.get(sourceNodeId);
+                
+                if (sourceOutput == null) continue;
+                
+                if (sourceOutput instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> sourceMap = (Map<String, Object>) sourceOutput;
                     
-                    // 提取源节点输出的所有键值对，直接合并到 inputs
+                    // 1. 以 sourceNodeId 为前缀存储，支持 {{nodeId.field}} 语法
+                    for (Map.Entry<String, Object> entry : sourceMap.entrySet()) {
+                        inputs.put(sourceNodeId + "." + entry.getKey(), entry.getValue());
+                    }
+                    
+                    // 2. 同时扁平化合并（后来的覆盖前面的，保持向后兼容 {{field}} 语法）
                     inputs.putAll(sourceMap);
-                    System.out.println("[变量替换] inputs keys: " + inputs.keySet() + ", node=" + node.getNodeId());
+                    
+                    // 3. 如果有 result 键，展开 result 里面的内容
+                    if (sourceMap.containsKey("result") && sourceMap.get("result") instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> resultMap = (Map<String, Object>) sourceMap.get("result");
+                        // 同样以 nodeId 前缀存储
+                        for (Map.Entry<String, Object> entry : resultMap.entrySet()) {
+                            inputs.put(sourceNodeId + "." + entry.getKey(), entry.getValue());
+                        }
+                        inputs.putAll(resultMap);
+                    }
+                    
+                    System.out.println("[DAG] 收集上游输出: " + sourceNodeId + " -> " + node.getNodeId() 
+                        + ", keys=" + sourceMap.keySet());
+                } else {
+                    // 非 Map 类型输出，以 sourceNodeId 为 key 存储
+                    inputs.put(sourceNodeId, sourceOutput);
+                    System.out.println("[DAG] 收集上游输出(非Map): " + sourceNodeId + " -> " + node.getNodeId()
+                        + ", type=" + sourceOutput.getClass().getSimpleName());
                 }
             }
         }
         
-        // ===== 变量替换：将 {{nodeId.field}} 替换为实际值 =====
+        // ===== 变量替换：将 config 中的 {{field}} 和 {{nodeId.field}} 替换为实际值 =====
         if (node.getConfig() != null) {
-            System.out.println("[变量替换] node=" + node.getNodeId() + ", config=" + node.getConfig());
             for (Map.Entry<String, Object> entry : node.getConfig().entrySet()) {
                 Object replacedValue = replaceVariables(entry.getValue(), inputs);
-                System.out.println("[变量替换] key=" + entry.getKey() + ", original=" + entry.getValue() + ", replaced=" + replacedValue);
                 inputs.put(entry.getKey(), replacedValue);
             }
         }
         
+        System.out.println("[DAG] 节点 " + node.getNodeId() + " 最终 inputs keys: " + inputs.keySet());
         return inputs;
     }
     
-    // 简单的变量替换：{{field}} -> variables.get(field)
+    /**
+     * 变量替换：支持 {{field}} 和 {{nodeId.field}} 语法
+     */
     private Object replaceVariables(Object value, Map<String, Object> variables) {
         if (value == null) return null;
         if (!(value instanceof String)) return value;
         
         String str = (String) value;
-        // 检查是否包含变量
         if (!str.contains("{{") || !str.contains("}}")) {
             return str;
         }
         
         String result = str;
-        for (Map.Entry<String, Object> entry : variables.entrySet()) {
-            if (entry.getValue() != null) {
-                String placeholder = "{{" + entry.getKey() + "}}";
-                if (result.contains(placeholder)) {
-                    System.out.println("[变量替换] 替换 " + placeholder + " -> " + entry.getValue());
-                    result = result.replace(placeholder, entry.getValue().toString());
-                }
+        // 使用正则匹配 {{xxx}} 或 {{xxx.yyy}} 模式
+        Pattern pattern = Pattern.compile("\\{\\{\\s*([\\w.]+)\\s*\\}\\}");
+        Matcher matcher = pattern.matcher(result);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String varName = matcher.group(1);
+            Object val = variables.get(varName);
+            if (val != null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(val.toString()));
+            } else {
+                // 未找到变量，保留原始占位符
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));
             }
         }
-        return result;
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     private List<String> topologicalSort(Workflow workflow) {

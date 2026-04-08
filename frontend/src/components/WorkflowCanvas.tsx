@@ -28,6 +28,7 @@ import {
   LoadingOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import NodeSidebar from './NodeSidebar';
 import ResultPreview from './ResultPreview';
 import PythonConfigPanel from './PythonConfigPanel';
 import { PythonNode } from '../nodes/PythonNode';
@@ -35,6 +36,9 @@ import { HttpRequestNode } from '../nodes/HttpRequestNode';
 import { ConditionalNode } from '../nodes/ConditionalNode';
 import { LoopNode } from '../nodes/LoopNode';
 import { LLMNode } from '../nodes/LLMNode';
+import WxPushNode from '../workflow/nodes/WxPushNode';
+import { EtlNode } from '../nodes/EtlNode';
+import { RecommendationNode } from '../nodes/RecommendationNode';
 
 const { TextArea } = Input;
 const { Option, OptGroup } = Select;
@@ -115,6 +119,7 @@ function SimpleNode({ data, id }: any) {
           {nodeType === 'input' && '数据输入'}
           {nodeType === 'output' && '数据输出'}
           {nodeType === 'process' && '数据处理'}
+          {nodeType === 'wx_push' && '微信推送'}
         </div>
       </div>
 
@@ -130,6 +135,9 @@ const nodeTypes = {
   simple: SimpleNode,
   python_script: PythonNode,
   llm: LLMNode,
+  wx_push: WxPushNode,
+  etl: EtlNode,
+  llm_recommendation: RecommendationNode,
 };
 
 const initialNodes: Node[] = [
@@ -237,6 +245,8 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
       model: 'simple',
       llm: 'llm',
       process: 'simple',
+      etl: 'etl',
+      llm_recommendation: 'llm_recommendation',
     };
     return typeMap[type] || 'simple';
   };
@@ -249,7 +259,10 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
       http_request: { url: 'https://api.example.com', method: 'GET', timeout: 5000, headers: {} },
       conditional: { expression: '', value: '' },
       loop: { items: [], itemVar: 'item', indexVar: 'index', concurrency: 1, maxIterations: 100 },
+      model: { modelProvider: '', prompt: '' },
       llm: { model: 'qwen-plus', systemPrompt: '你是一个有用的 AI 助手', userPrompt: '', temperature: 0.7, maxTokens: 2048 },
+      etl: { sources: [] },
+      llm_recommendation: { model: 'hunyuan-2.0-instruct', userProfile: { profession: 'Java 工程师 + 技术 Leader', businessFocus: 'AI 生图、AI 生视频', interests: ['数码爱好者', '游戏爱好者', '爱狗人士', '业余拳击运动'] } },
     };
     
     return { ...baseData, ...defaultConfigs[type] };
@@ -340,10 +353,7 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
           type: node.type?.toUpperCase() || 'DEFAULT',
           position: node.position,
           config: node.data.config || {},
-          modelProvider: node.data.label?.includes('可灵') ? 'kling' : 
-                        node.data.label?.includes('万相') ? 'wan' :
-                        node.data.label?.includes('Seedance') ? 'seedance' :
-                        node.data.label?.includes('NanoBanana') ? 'nanobanana' : undefined,
+          modelProvider: node.data.config?.modelProvider || undefined,
         })),
         edges: edges.map(edge => ({ ...edge, dataType: 'text' })),
       };
@@ -447,53 +457,10 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
             </div>
           </Card>
 
-          {/* 顶部工具栏 - 参考 Dify/n8n 设计 */}
-          <Card
-            size="small"
-            className="node-toolbox"
-            style={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              zIndex: 1000,
-              width: '200px',
-            }}
-          >
-            <div style={{ fontWeight: 600, marginBottom: '12px', fontSize: '14px' }}>
-              <AppstoreOutlined style={{ marginRight: '8px' }} />
-              节点工具箱
-            </div>
-            <Space direction="vertical" style={{ width: '100%' }} size="small">
-              <Button icon={<span>📝</span>} draggable onDragStart={(e) => onDragStart(e, 'input')} onClick={() => addNode('input', '输入节点')} block>
-                输入节点
-              </Button>
-              <Button icon={<span>🎨</span>} draggable onDragStart={(e) => onDragStart(e, 'model')} onClick={() => addNode('model', '模型节点')} block>
-                模型节点
-              </Button>
-              <Button icon={<RobotOutlined />} draggable onDragStart={(e) => onDragStart(e, 'llm')} onClick={() => addNode('llm', 'LLM 节点')} block>
-                LLM 节点
-              </Button>
-              <Button icon={<span>🐍</span>} draggable onDragStart={(e) => onDragStart(e, 'python')} onClick={() => addNode('python', 'Python 脚本', '🐍')} block>
-                Python 脚本
-              </Button>
-              <Button icon={<ThunderboltOutlined />} draggable onDragStart={(e) => onDragStart(e, 'process')} onClick={() => addNode('process', '处理节点')} block>
-                处理节点
-              </Button>
-              <Button icon={<ExportOutlined />} draggable onDragStart={(e) => onDragStart(e, 'output')} onClick={() => addNode('output', '输出节点')} block>
-                输出节点
-              </Button>
-              <Divider style={{ margin: '8px 0' }} />
-              <Button icon={<span>🌐</span>} draggable onDragStart={(e) => onDragStart(e, 'http_request')} onClick={() => addNode('http_request', 'HTTP 请求')} block>
-                HTTP 请求
-              </Button>
-              <Button icon={<span>🔀</span>} draggable onDragStart={(e) => onDragStart(e, 'conditional')} onClick={() => addNode('conditional', '条件判断')} block>
-                条件判断
-              </Button>
-              <Button icon={<span>🔄</span>} draggable onDragStart={(e) => onDragStart(e, 'loop')} onClick={() => addNode('loop', '循环处理')} block>
-                循环处理
-              </Button>
-            </Space>
-          </Card>
+          {/* 左侧节点分类面板 - 参考 Dify/LangFlow */}
+          <NodeSidebar
+            onAddNode={(type, label, icon) => addNode(type, label, icon)}
+          />
 
           {/* 画布 */}
           <div data-testid="canvas" className="canvas-container" style={{ width: '100%', height: '100%' }}>
@@ -517,7 +484,8 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
                 const labelMap: Record<string, string> = {
                   input: '输入节点', model: '模型节点', llm: 'LLM 节点',
                   python: 'Python 脚本', process: '处理节点', output: '输出节点',
-                  http_request: 'HTTP 请求', conditional: '条件判断', loop: '循环处理'
+                  http_request: 'HTTP 请求', conditional: '条件判断', loop: '循环处理',
+                  etl: 'ETL 数据清洗', llm_recommendation: 'LLM 智能推荐'
                 };
                 addNode(type, labelMap[type] || type);
               }}
@@ -770,6 +738,29 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
                 bordered
               >
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  {/* 模型选择下拉框 - 仅模型节点显示 */}
+                  {selectedNode.data.type === 'model' && (
+                    <div>
+                      <div style={{ fontWeight: 500, marginBottom: '8px' }}>🎨 模型提供商</div>
+                      <Select
+                        value={selectedNode.data.config?.modelProvider || undefined}
+                        onChange={(value) => handleConfigChange('modelProvider', value)}
+                        placeholder="请选择模型提供商"
+                        style={{ width: '100%' }}
+                        allowClear
+                      >
+                        <OptGroup label="🎬 视频生成">
+                          <Option value="kling">🎬 可灵 (Kling)</Option>
+                          <Option value="seedance">🎬 即梦 (Seedance)</Option>
+                        </OptGroup>
+                        <OptGroup label="🖼️ 图片生成">
+                          <Option value="wan">🎨 海螺 (Wan)</Option>
+                          <Option value="nanobanana">🎨 NanoBanana</Option>
+                        </OptGroup>
+                      </Select>
+                    </div>
+                  )}
+
                   <div>
                     <div style={{ fontWeight: 500, marginBottom: '8px' }}>📝 提示词</div>
                     <TextArea
@@ -782,7 +773,7 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
                     />
                   </div>
 
-                  {(selectedNode.data.label?.includes('模型') || selectedNode.data.label?.includes('可灵')) && (
+                  {['kling', 'seedance'].includes(selectedNode.data.config?.modelProvider) && (
                     <>
                       <div>
                         <div style={{ fontWeight: 500, marginBottom: '8px' }}>⏱️ 视频时长（秒）</div>
@@ -809,7 +800,7 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
                     </>
                   )}
 
-                  {(selectedNode.data.label?.includes('万相') || selectedNode.data.label?.includes('NanoBanana')) && (
+                  {['wan', 'nanobanana'].includes(selectedNode.data.config?.modelProvider) && (
                     <div>
                       <div style={{ fontWeight: 500, marginBottom: '8px' }}>🖼️ 图片尺寸</div>
                       <Select
