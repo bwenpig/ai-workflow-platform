@@ -187,22 +187,44 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
       const workflow = await res.json();
       
       if (workflow.nodes && workflow.nodes.length > 0) {
-        const loadedNodes = workflow.nodes.map((n: any) => ({
-          id: n.nodeId,
-          type: n.type === 'http_request' ? 'http_request' : 
-                n.type === 'conditional' ? 'conditional' : 
-                n.type === 'loop' ? 'loop' : 
-                n.type === 'PYTHON_SCRIPT' ? 'python_script' : 'simple',
-          position: n.position || { x: 100, y: 100 },
-          data: { 
-            label: n.config?.label || n.nodeId, 
-            icon: n.type === 'http_request' ? '🌐' : 
-                  n.type === 'conditional' ? '🔀' : 
-                  n.type === 'loop' ? '🔄' : 
-                  n.type === 'PYTHON_SCRIPT' ? '🐍' : '📝',
-            config: n.config || {}
-          },
-        }));
+        // 图标映射
+        const iconMap: Record<string, string> = {
+          http_request: '🌐',
+          conditional: '🔀',
+          loop: '🔄',
+          python_script: '🐍',
+          simple: '📝',
+          llm: '🤖',
+          wx_push: '💬',
+          etl: '🔄',
+          llm_recommendation: '🎯',
+          link_scraper: '🔗',
+        };
+
+        // 自动布局：计算节点位置
+        const hasPositions = workflow.nodes.some((n: any) => n.position);
+        const loadedNodes = workflow.nodes.map((n: any, index: number) => {
+          const nodeType = getNodeType(n.type);
+          const label = n.config?.label || n.nodeId;
+          
+          // 如果后端没有位置，自动垂直排列
+          let position = n.position;
+          if (!position) {
+            position = { x: 250, y: 50 + index * 180 };
+          }
+          
+          return {
+            id: n.nodeId,
+            type: nodeType,
+            position,
+            data: {
+              label: label,
+              icon: iconMap[nodeType] || '📝',
+              type: n.type,
+              config: n.config || {},
+            },
+          };
+        });
         
         const loadedEdges = (workflow.edges || []).map((e: any, i: number) => ({
           id: e.id || `e${i}`,
@@ -215,9 +237,11 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
         setNodes(loadedNodes);
         setEdges(loadedEdges);
         setCurrentWorkflowId(id);
+        message.success(`已加载工作流: ${workflow.name || '未命名'} (${loadedNodes.length} 节点)`);
       }
     } catch (e) {
       console.error('加载工作流失败', e);
+      message.error('加载工作流失败');
     }
   };
 
@@ -233,10 +257,12 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
     [setEdges]
   );
 
-  // 节点类型映射
+  // 节点类型映射（支持大小写）
   const getNodeType = (type: string): string => {
+    const normalizedType = type.toLowerCase();
     const typeMap: Record<string, string> = {
       python: 'python_script',
+      python_script: 'python_script',
       http_request: 'http_request',
       conditional: 'conditional',
       loop: 'loop',
@@ -247,8 +273,10 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
       process: 'simple',
       etl: 'etl',
       llm_recommendation: 'llm_recommendation',
+      wx_push: 'wx_push',
+      link_scraper: 'http_request', // link_scraper 用 HTTP 节点渲染
     };
-    return typeMap[type] || 'simple';
+    return typeMap[normalizedType] || 'simple';
   };
 
   // 获取默认节点数据

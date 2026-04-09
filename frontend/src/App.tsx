@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WorkflowCanvas from './components/WorkflowCanvas';
 import { LogPanel } from './components/LogPanel/LogPanel';
 import { NodeStatusBadge } from './components/NodeStatus/NodeStatusBadge';
@@ -19,13 +19,34 @@ function App() {
   // 工作流列表状态
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
 
   // 获取工作流列表
   const loadWorkflows = async () => {
-    const res = await fetch('http://localhost:8080/api/v1/projects');
-    const data = await res.json();
-    setWorkflows(data);
+    setLoadingWorkflows(true);
+    setWorkflowError(null);
+    try {
+      const res = await fetch('http://localhost:8080/api/v1/workflows');
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setWorkflows(data);
+    } catch (e) {
+      console.error('加载工作流列表失败', e);
+      setWorkflowError(e instanceof Error ? e.message : '加载失败');
+    } finally {
+      setLoadingWorkflows(false);
+    }
   };
+
+  // 当切换到列表视图时自动加载工作流
+  useEffect(() => {
+    if (view === 'list') {
+      loadWorkflows();
+    }
+  }, [view]);
 
   // 执行工作流 - 使用正确的API端点
   const executeWorkflow = async (workflowId: string) => {
@@ -112,17 +133,30 @@ function App() {
           ) : (
             <div style={{ padding: '20px', color: 'white' }}>
               <h2>工作流列表</h2>
-              <button onClick={loadWorkflows} style={{
-                background: '#4a4a6a',
-                border: 'none',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginBottom: '15px',
-              }}>🔄 刷新</button>
-              {workflows.length === 0 ? (
-                <p>暂无工作流，点击刷新加载</p>
+              <button
+                onClick={loadWorkflows}
+                disabled={loadingWorkflows}
+                style={{
+                  background: loadingWorkflows ? '#2a2a3a' : '#4a4a6a',
+                  border: 'none',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: loadingWorkflows ? 'not-allowed' : 'pointer',
+                  marginBottom: '15px',
+                }}
+              >
+                {loadingWorkflows ? '⏳ 加载中...' : '🔄 刷新'}
+              </button>
+              {workflowError && (
+                <div style={{ color: '#f85149', marginBottom: '15px', padding: '10px', background: '#2a1a1a', borderRadius: '4px' }}>
+                  ❌ 加载失败: {workflowError}
+                </div>
+              )}
+              {loadingWorkflows ? (
+                <p style={{ color: '#888' }}>正在加载工作流...</p>
+              ) : workflows.length === 0 ? (
+                <p>暂无工作流</p>
               ) : (
                 workflows.map(wf => (
                   <div key={wf.id} style={{ 
