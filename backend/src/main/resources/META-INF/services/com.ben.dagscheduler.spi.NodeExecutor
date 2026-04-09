@@ -2,3 +2,8 @@ com.ben.workflow.executor.ConditionalExecutor
 com.ben.workflow.executor.LoopExecutor
 com.ben.workflow.executor.HttpRequestExecutor
 com.ben.workflow.executor.LLMNodeExecutor
+com.ben.workflow.executor.LinkScraperExecutor
+com.ben.workflow.executor.EtlExecutor
+com.ben.workflow.executor.WxPushExecutor
+com.ben.workflow.executor.LlmRecommendationExecutor
+com.ben.workflow.executor.EmailExecutor

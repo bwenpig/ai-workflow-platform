@@ -108,8 +108,22 @@ public class WxPushExecutor extends BaseExecutor {
         // 变量替换: 处理 {{xxx}} 模式
         content = resolveVariables(content, context);
 
-        // 调用 OpenClaw 微信 API
-        boolean success = doSendWxMessage(to, content, silent);
+        // 检查是否需要分割发送（支持多部分推送）
+        boolean success = true;
+        if (content.contains("--第一部分--") && content.contains("--第二部分--")) {
+            // 分割内容，分两条发送
+            String[] parts = content.split("--第二部分--");
+            String part1 = parts[0].replace("--第一部分--", "").trim();
+            String part2 = "--第二部分--" + parts[1];
+            
+            logger.info("WxPush: splitting into 2 messages");
+            boolean r1 = doSendWxMessage(to, part1, silent);
+            boolean r2 = doSendWxMessage(to, part2, silent);
+            success = r1 && r2;
+        } else {
+            // 单一消息发送
+            success = doSendWxMessage(to, content, silent);
+        }
 
         Map<String, Object> outputs = new LinkedHashMap<>();
         outputs.put("sent", success);

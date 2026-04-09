@@ -442,17 +442,77 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
                   setSelectedWorkflow(val);
                   if (val) loadWorkflow(val);
                 }}
-                options={workflowList.map((w) => ({ label: w.name, value: w.id }))}
+                options={workflowList.map((w) => ({ label: w.name || '未命名', value: w.id }))}
                 allowClear
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
                 onClear={() => {
                   setSelectedWorkflow('');
                   setCurrentWorkflowId(null);
                 }}
+                virtual={false}
+                listHeight={500}
               />
               <Button 
                 icon={<ReloadOutlined />} 
                 onClick={loadWorkflowList}
                 title="刷新列表"
+              />
+              <Button 
+                icon={<ExportOutlined />} 
+                onClick={() => {
+                  if (!currentWorkflowId) {
+                    message.warning('请先选择一个工作流');
+                    return;
+                  }
+                  const workflow = workflowList.find(w => w.id === currentWorkflowId);
+                  if (!workflow) {
+                    message.error('未找到工作流数据');
+                    return;
+                  }
+                  const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${workflow.name || 'workflow'}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  message.success('导出成功');
+                }}
+                title="导出工作流"
+              />
+              <Button 
+                icon={<AppstoreOutlined />} 
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.json';
+                  input.onchange = async (e: any) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    try {
+                      const text = await file.text();
+                      const workflow = JSON.parse(text);
+                      const res = await fetch('http://localhost:8080/api/v1/workflows', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(workflow)
+                      });
+                      if (res.ok) {
+                        message.success('导入成功');
+                        loadWorkflowList();
+                      } else {
+                        message.error('导入失败');
+                      }
+                    } catch (err) {
+                      message.error('解析文件失败');
+                    }
+                  };
+                  input.click();
+                }}
+                title="导入工作流"
               />
             </div>
           </Card>
