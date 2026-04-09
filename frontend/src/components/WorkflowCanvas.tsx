@@ -6,6 +6,7 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   addEdge,
   Connection,
   Edge,
@@ -128,6 +129,7 @@ function SimpleNode({ data, id }: any) {
   );
 }
 
+// 注意：nodeTypes 必须在组件外部定义，避免每次渲染重新创建导致 ReactFlow 重新挂载
 const nodeTypes = {
   http_request: HttpRequestNode,
   conditional: ConditionalNode,
@@ -447,9 +449,9 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
         },
       }}
     >
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', background: '#f0f2f5' }}>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f0f2f5' }}>
         {/* 左侧画布区域 */}
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           {/* 工作流选择器 */}
           <Card
             size="small"
@@ -551,7 +553,7 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
           />
 
           {/* 画布 */}
-          <div data-testid="canvas" className="canvas-container" style={{ width: '100%', height: '100%' }}>
+          <div data-testid="canvas" className="canvas-container" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -559,6 +561,10 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               onNodeClick={onNodeClick}
+              onInit={(instance) => {
+                // 初始化后自动适应视图
+                instance.fitView({ padding: 0.2 });
+              }}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -577,10 +583,10 @@ export default function WorkflowCanvas({ onExecutionStart }: WorkflowCanvasProps
                 };
                 addNode(type, labelMap[type] || type);
               }}
-              fitView
               nodeTypes={nodeTypes}
               style={{ background: 'transparent' }}
               data-testid="react-flow"
+              fitView={{ padding: 0.2, duration: 300 }}
             >
               <Controls />
               <MiniMap

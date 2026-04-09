@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
 import WorkflowCanvas from './components/WorkflowCanvas';
 import { LogPanel } from './components/LogPanel/LogPanel';
 import { NodeStatusBadge } from './components/NodeStatus/NodeStatusBadge';
@@ -121,6 +122,7 @@ function App() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* 工作流画布 */}
         <main style={{ flex: 1, overflow: 'hidden' }}>
+          <ReactFlowProvider>
           {view === 'canvas' ? (
             <WorkflowCanvas onExecutionStart={(execId) => {
               setCurrentExecutionId(execId);
@@ -195,6 +197,7 @@ function App() {
               )}
             </div>
           )}
+          </ReactFlowProvider>
         </main>
         
         {/* 日志面板 - 可折叠 */}
