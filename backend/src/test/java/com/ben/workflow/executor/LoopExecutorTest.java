@@ -117,7 +117,7 @@ public class LoopExecutorTest {
 
     @Test
     @DisplayName("测试并发执行")
-    void testConcurrency() {
+    void testConcurrency() throws Exception {
         List<Integer> items = new ArrayList<>();
         for (int i = 0; i < 20; i++) items.add(i);
         
@@ -144,7 +144,12 @@ public class LoopExecutorTest {
 
         assertTrue(result.isSuccess());
         assertTrue(maxConcurrent.get() > 1, "应该并发执行，最大并发=" + maxConcurrent.get());
-        assertTrue(latch.await(10, TimeUnit.SECONDS), "所有任务应该完成");
+        try {
+            assertTrue(latch.await(10, TimeUnit.SECONDS), "所有任务应该完成");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("测试被中断");
+        }
     }
 
     @Test
