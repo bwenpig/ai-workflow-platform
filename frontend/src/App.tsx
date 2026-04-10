@@ -5,6 +5,7 @@ import { LogPanel } from './components/LogPanel/LogPanel';
 import { NodeStatusBadge } from './components/NodeStatus/NodeStatusBadge';
 import { useNodeStatusStore } from './stores/nodeStatusStore';
 import SchedulerPage from './components/SchedulerPage';
+import { CcTaskPanel } from './components/CcTaskPanel/CcTaskPanel';
 
 // 导入主题样式
 import './styles/theme-dark.css';
@@ -15,6 +16,7 @@ import './styles/theme-dark.css';
 function App() {
   const [view, setView] = useState<'canvas' | 'list' | 'scheduler'>('canvas');
   const [showLog, setShowLog] = useState(true);
+  const [showCcTask, setShowCcTask] = useState(false);
   const { statuses } = useNodeStatusStore();
   
   // 工作流列表状态
@@ -113,15 +115,34 @@ function App() {
           ))}
         </div>
         
-        <div style={{ fontSize: '12px', color: '#888' }}>
-          Ben's AI Lab © 2026
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* CC 任务追踪按钮 */}
+          <button
+            onClick={() => setShowCcTask(!showCcTask)}
+            style={{
+              background: showCcTask ? '#4a4a6a' : 'transparent',
+              border: '1px solid ' + (showCcTask ? '#6e6e8a' : '#30363d'),
+              color: 'white',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              lineHeight: '1',
+            }}
+            title="CC 任务追踪"
+          >
+            🤖
+          </button>
+          <div style={{ fontSize: '12px', color: '#888' }}>
+            Ben's AI Lab © 2026
+          </div>
         </div>
       </header>
 
       {/* 主内容区 + 日志面板 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* 工作流画布 */}
-        <main style={{ flex: 1, overflow: 'hidden' }}>
+        <main style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           <ReactFlowProvider>
           {view === 'canvas' ? (
             <WorkflowCanvas onExecutionStart={(execId) => {
@@ -213,6 +234,19 @@ function App() {
         )}
       </div>
 
+      {/* CC 任务追踪面板 - 浮动在右侧 */}
+      {showCcTask && (
+        <div style={{
+          position: 'fixed',
+          top: '60px',
+          right: '12px',
+          zIndex: 1001,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+        }}>
+          <CcTaskPanel />
+        </div>
+      )}
+
       {/* 日志面板切换按钮 */}
       {view !== 'scheduler' && (
         <button
@@ -220,7 +254,7 @@ function App() {
           style={{
             position: 'fixed',
             bottom: showLog ? '190px' : '10px',
-            right: '10px',
+            right: showCcTask ? '440px' : '10px',
             background: '#30363d',
             border: 'none',
             color: 'white',
@@ -228,6 +262,7 @@ function App() {
             borderRadius: '4px',
             cursor: 'pointer',
             zIndex: 1000,
+            transition: 'right 0.2s',
           }}
         >
           {showLog ? '📋 隐藏日志' : '📋 显示日志'}
